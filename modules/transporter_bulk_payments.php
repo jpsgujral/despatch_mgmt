@@ -228,6 +228,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
     $payment_date = sanitize($_POST['payment_date'] ?? date('Y-m-d'));
     $remarks = sanitize($_POST['remarks'] ?? '');
     $status = 'Pending';
+    $settlement_mode = (($_POST['settlement_mode'] ?? 'full') === 'partial') ? 'partial' : 'full';
+    $settlement_amount_input = (float)($_POST['settlement_amount'] ?? 0);
 
     $selected_ids = array_map('intval', $_POST['selected_despatch'] ?? []);
     $hold_gst_map = $_POST['hold_gst'] ?? [];
@@ -235,6 +237,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
     $errors = [];
     if ($selected_transporter_id <= 0) $errors[] = 'Please select a transporter.';
     if (empty($selected_ids)) $errors[] = 'Please select at least one challan.';
+    if ($settlement_mode === 'partial' && $settlement_amount_input <= 0) {
+        $errors[] = 'Please enter a valid settlement amount greater than 0 for partial / on-account payment.';
+    }
 
     $row_index = [];
     foreach ($due_rows as $r) $row_index[(int)$r['id']] = $r;
@@ -258,58 +263,182 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
         $selected_rows[] = $r;
     }
 
+    // Sort selected rows strictly in FIFO order (despatch_date ASC, id ASC)
+    usort($selected_rows, function($a, $b) {
+        $da = (string)($a['despatch_date'] ?? '');
+        $db = (string)($b['despatch_date'] ?? '');
+        if ($da !== $db) {
+            return strcmp($da, $db);
+        }
+        return ((int)($a['id'] ?? 0)) <=> ((int)($b['id'] ?? 0));
+    });
+
     if (empty($errors) && empty($selected_rows)) {
         showAlert('info', 'Selected challan(s) already have no payable balance. The outstanding list has been refreshed.');
         redirect('transporter_bulk_payments.php?transporter_id=' . $selected_transporter_id);
     }
 
     if (empty($errors) && !empty($selected_rows)) {
-        $batch_no = generatePaymentBatchNo($db);
-        $created_by = (int)($_SESSION['user_id'] ?? 0);
-        $created_count = 0;
+        // Precompute full net due for each row
+        $computed_rows = [];
+        $total_selected_net_due = 0.0;
+        foreach ($selected_rows as $r) {
+            $despatch_id = (int)$r['id'];
+            $is_release_only = !empty($r['_release_only']);
+            $is_gst_balance_only = !empty($r['_gst_balance_only']);
+            $freight = ($is_release_only || $is_gst_balance_only) ? 0.0 : (float)$r['_rem_base'];
+            $misc = ($is_release_only || $is_gst_balance_only) ? 0.0 : (float)($r['_rem_misc'] ?? 0);
+            $gst_type = (string)($r['gst_type'] ?? '');
+            $gst_rate = (float)($r['gst_rate'] ?? 0);
+            $tds_rate = ($is_release_only || $is_gst_balance_only) ? 0.0 : ((($r['tds_applicable'] ?? 'No') === 'Yes') ? (float)($r['tds_rate'] ?? 0) : 0.0);
+            $gst_hold = (!$is_release_only && !$is_gst_balance_only && !empty($hold_gst_map[$despatch_id]) && $gst_type !== 'RCM' && $gst_rate > 0) ? 'Yes' : 'No';
+            $gst_amount = $is_release_only ? (float)$r['_net_gst_hold'] : ($is_gst_balance_only ? (float)$r['_gst_due'] : (($gst_type !== 'RCM') ? round($freight * $gst_rate / 100, 2) : 0.0));
+            $tds_amount = $tds_rate > 0 ? round($freight * $tds_rate / 100, 2) : 0.0;
+            $net_payable = ($is_release_only || $is_gst_balance_only) ? $gst_amount : round($freight + ($gst_hold === 'Yes' ? 0.0 : $gst_amount) - $tds_amount + $misc, 2);
 
-        $db->begin_transaction();
-        try {
-            foreach ($selected_rows as $r) {
-                $despatch_id = (int)$r['id'];
-                $is_release_only = !empty($r['_release_only']);
-                $is_gst_balance_only = !empty($r['_gst_balance_only']);
-                $freight = ($is_release_only || $is_gst_balance_only) ? 0 : (float)$r['_rem_base'];
-                $misc = ($is_release_only || $is_gst_balance_only) ? 0 : (float)($r['_rem_misc'] ?? 0);
-                $gst_type = (string)($r['gst_type'] ?? '');
-                $gst_rate = (float)($r['gst_rate'] ?? 0);
-                $tds_rate = ($is_release_only || $is_gst_balance_only) ? 0 : ((($r['tds_applicable'] ?? 'No') === 'Yes') ? (float)($r['tds_rate'] ?? 0) : 0);
-                $gst_hold = (!$is_release_only && !$is_gst_balance_only && !empty($hold_gst_map[$despatch_id]) && $gst_type !== 'RCM' && $gst_rate > 0) ? 'Yes' : 'No';
-                $gst_amount = $is_release_only ? (float)$r['_net_gst_hold'] : ($is_gst_balance_only ? (float)$r['_gst_due'] : (($gst_type !== 'RCM') ? round($freight * $gst_rate / 100, 2) : 0));
-                $tds_amount = $tds_rate > 0 ? round($freight * $tds_rate / 100, 2) : 0;
-                $net_payable = ($is_release_only || $is_gst_balance_only) ? $gst_amount : round($freight + ($gst_hold === 'Yes' ? 0 : $gst_amount) - $tds_amount + $misc, 2);
-                $payment_no = generatePaymentNoBulk($db, $payment_date);
-                $payment_type = $is_release_only ? 'GST Release' : ($is_gst_balance_only ? 'GST Balance' : 'Bulk Settlement');
-                $is_gst_release = $is_release_only ? 'Yes' : 'No';
+            $computed_rows[] = [
+                'row' => $r,
+                'despatch_id' => $despatch_id,
+                'is_release_only' => $is_release_only,
+                'is_gst_balance_only' => $is_gst_balance_only,
+                'freight' => $freight,
+                'misc' => $misc,
+                'gst_type' => $gst_type,
+                'gst_rate' => $gst_rate,
+                'tds_rate' => $tds_rate,
+                'gst_hold' => $gst_hold,
+                'gst_amount' => $gst_amount,
+                'tds_amount' => $tds_amount,
+                'net_payable' => $net_payable,
+            ];
+            $total_selected_net_due = round($total_selected_net_due + $net_payable, 2);
+        }
 
-                $esc = fn($v) => $db->real_escape_string($v);
-                $sql = "INSERT INTO transporter_payments
-                    (payment_no, payment_batch_no, payment_date, transporter_id, despatch_id, payment_type,
-                     amount, base_amount, gst_type, gst_rate, gst_amount, gst_held, is_gst_release,
-                     tds_rate, tds_amount, net_payable, misc_charges, payment_mode, reference_no, bank_name,
-                     remarks, status, created_by)
-                    VALUES
-                    ('{$esc($payment_no)}', '{$esc($batch_no)}', '{$esc($payment_date)}', $selected_transporter_id, $despatch_id, '{$esc($payment_type)}',
-                     $net_payable, $freight, '{$esc($gst_type)}', $gst_rate, $gst_amount, '{$esc($gst_hold)}', '{$esc($is_gst_release)}',
-                     $tds_rate, $tds_amount, $net_payable, $misc, '', '', '',
-                     '{$esc($remarks)}', '{$esc($status)}', $created_by)";
-                if (!$db->query($sql)) {
-                    throw new RuntimeException($db->error ?: 'Database insert failed.');
-                }
-                $created_count++;
+        if ($settlement_mode === 'partial') {
+            if ($settlement_amount_input > $total_selected_net_due + 0.005) {
+                $errors[] = 'Settlement amount (₹' . number_format($settlement_amount_input, 2) . ') exceeds the total selected dues (₹' . number_format($total_selected_net_due, 2) . ').';
             }
-            $db->commit();
-            $skip_note = $skipped_no_balance > 0 ? " {$skipped_no_balance} already-settled challan(s) were skipped." : '';
-            showAlert('success', "Bulk payment batch {$batch_no} recorded for {$created_count} challan(s)." . $skip_note);
-            redirect('transporter_bulk_payments.php?transporter_id=' . $selected_transporter_id . '&batch=' . urlencode($batch_no));
-        } catch (Throwable $e) {
-            $db->rollback();
-            showAlert('danger', 'Bulk payment could not be saved. ' . htmlspecialchars($e->getMessage()));
+        }
+
+        if (empty($errors)) {
+            $batch_no = generatePaymentBatchNo($db);
+            $created_by = (int)($_SESSION['user_id'] ?? 0);
+            $created_count = 0;
+            $fully_settled_count = 0;
+            $partially_settled_count = 0;
+            $standing_balance_total = 0.0;
+            $remaining_budget = ($settlement_mode === 'partial') ? $settlement_amount_input : $total_selected_net_due;
+            $total_settled_batch = 0.0;
+
+            $db->begin_transaction();
+            try {
+                foreach ($computed_rows as $c) {
+                    $row_net = (float)$c['net_payable'];
+                    if ($remaining_budget <= 0.004) {
+                        // Budget exhausted: this bill is skipped and remains 100% standing
+                        $standing_balance_total = round($standing_balance_total + $row_net, 2);
+                        continue;
+                    }
+
+                    $despatch_id = $c['despatch_id'];
+                    $is_release_only = $c['is_release_only'];
+                    $is_gst_balance_only = $c['is_gst_balance_only'];
+                    $gst_type = $c['gst_type'];
+                    $gst_rate = $c['gst_rate'];
+                    $tds_rate = $c['tds_rate'];
+                    $gst_hold = $c['gst_hold'];
+                    $is_gst_release = $is_release_only ? 'Yes' : 'No';
+
+                    if ($remaining_budget >= $row_net - 0.005) {
+                        // Full settlement for this row
+                        $alloc_net = $row_net;
+                        $remaining_budget = max(0.0, round($remaining_budget - $alloc_net, 2));
+                        $alloc_freight = $c['freight'];
+                        $alloc_gst = $c['gst_amount'];
+                        $alloc_tds = $c['tds_amount'];
+                        $alloc_misc = $c['misc'];
+                        $payment_type = $is_release_only ? 'GST Release' : ($is_gst_balance_only ? 'GST Balance' : 'Bulk Settlement');
+                        $fully_settled_count++;
+                    } else {
+                        // Partial settlement for this row
+                        $alloc_net = round($remaining_budget, 2);
+                        $standing_on_row = max(0.0, round($row_net - $alloc_net, 2));
+                        $standing_balance_total = round($standing_balance_total + $standing_on_row, 2);
+                        $remaining_budget = 0.0;
+                        $partially_settled_count++;
+                        $payment_type = 'Partial Settlement';
+
+                        if ($is_release_only || $is_gst_balance_only) {
+                            $alloc_freight = 0.0;
+                            $alloc_misc = 0.0;
+                            $alloc_gst = $alloc_net;
+                            $alloc_tds = 0.0;
+                        } else {
+                            $ratio = ($row_net > 0.001) ? ($alloc_net / $row_net) : 0.0;
+                            $alloc_misc = ($c['misc'] > 0) ? round($c['misc'] * $ratio, 2) : 0.0;
+                            $net_for_freight = max(0.0, round($alloc_net - $alloc_misc, 2));
+                            $gst_mult = ($gst_hold === 'Yes' || $gst_type === 'RCM') ? 0.0 : ($gst_rate / 100);
+                            $tds_mult = $tds_rate / 100;
+                            $eff_mult = 1.0 + $gst_mult - $tds_mult;
+
+                            if ($eff_mult > 0.001) {
+                                $alloc_freight = min((float)$c['freight'], max(0.0, round($net_for_freight / $eff_mult, 2)));
+                            } else {
+                                $alloc_freight = min((float)$c['freight'], $net_for_freight);
+                            }
+                            $alloc_gst = ($gst_type !== 'RCM' && $gst_rate > 0) ? round($alloc_freight * $gst_rate / 100, 2) : 0.0;
+                            $alloc_tds = ($tds_rate > 0) ? round($alloc_freight * $tds_rate / 100, 2) : 0.0;
+
+                            // Reconcile penny difference to match exact alloc_net
+                            $calc_net = round($alloc_freight + ($gst_hold === 'Yes' ? 0.0 : $alloc_gst) - $alloc_tds + $alloc_misc, 2);
+                            $diff = round($alloc_net - $calc_net, 2);
+                            if (abs($diff) > 0.001 && abs($diff) < 1.0) {
+                                $alloc_freight = max(0.0, round($alloc_freight + $diff, 2));
+                                if ($gst_type !== 'RCM' && $gst_rate > 0) {
+                                    $alloc_gst = round($alloc_freight * $gst_rate / 100, 2);
+                                }
+                                if ($tds_rate > 0) {
+                                    $alloc_tds = round($alloc_freight * $tds_rate / 100, 2);
+                                }
+                            }
+                        }
+                    }
+
+                    $total_settled_batch = round($total_settled_batch + $alloc_net, 2);
+                    $payment_no = generatePaymentNoBulk($db, $payment_date);
+
+                    $esc = fn($v) => $db->real_escape_string($v);
+                    $sql = "INSERT INTO transporter_payments
+                        (payment_no, payment_batch_no, payment_date, transporter_id, despatch_id, payment_type,
+                         amount, base_amount, gst_type, gst_rate, gst_amount, gst_held, is_gst_release,
+                         tds_rate, tds_amount, net_payable, misc_charges, payment_mode, reference_no, bank_name,
+                         remarks, status, created_by)
+                        VALUES
+                        ('{$esc($payment_no)}', '{$esc($batch_no)}', '{$esc($payment_date)}', $selected_transporter_id, $despatch_id, '{$esc($payment_type)}',
+                         $alloc_net, $alloc_freight, '{$esc($gst_type)}', $gst_rate, $alloc_gst, '{$esc($gst_hold)}', '{$esc($is_gst_release)}',
+                         $tds_rate, $alloc_tds, $alloc_net, $alloc_misc, '', '', '',
+                         '{$esc($remarks)}', '{$esc($status)}', $created_by)";
+                    if (!$db->query($sql)) {
+                        throw new RuntimeException($db->error ?: 'Database insert failed.');
+                    }
+                    $created_count++;
+                }
+
+                $db->commit();
+                $skip_note = $skipped_no_balance > 0 ? " {$skipped_no_balance} already-settled challan(s) were skipped." : '';
+                if ($settlement_mode === 'partial') {
+                    $msg = "Bulk payment batch {$batch_no} recorded: ₹" . number_format($total_settled_batch, 2) . " settled across {$created_count} challan(s) ({$fully_settled_count} fully settled, {$partially_settled_count} partially settled). Remaining balance standing: ₹" . number_format($standing_balance_total, 2) . "." . $skip_note;
+                } else {
+                    $msg = "Bulk payment batch {$batch_no} recorded for {$created_count} challan(s) totaling ₹" . number_format($total_settled_batch, 2) . "." . $skip_note;
+                }
+                showAlert('success', $msg);
+                redirect('transporter_bulk_payments.php?transporter_id=' . $selected_transporter_id . '&batch=' . urlencode($batch_no));
+            } catch (Throwable $e) {
+                $db->rollback();
+                showAlert('danger', 'Bulk payment could not be saved. ' . htmlspecialchars($e->getMessage()));
+            }
+        } else {
+            showAlert('danger', implode('<br>', $errors));
         }
     } else {
         showAlert('danger', implode('<br>', $errors));
@@ -681,25 +810,66 @@ include '../includes/header.php';
                     <input type="date" name="payment_date" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" required>
                 </div>
                 <div class="col-6 col-md-3">
+                    <label class="form-label fw-semibold">Settlement Mode *</label>
+                    <div class="d-flex flex-column gap-1 mt-1">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="radio" name="settlement_mode" id="settleModeFull" value="full" checked onchange="onSettlementModeChange()">
+                            <label class="form-check-label fw-semibold small" for="settleModeFull">Full Settlement (100% of Selected)</label>
+                        </div>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="radio" name="settlement_mode" id="settleModePartial" value="partial" onchange="onSettlementModeChange()">
+                            <label class="form-check-label fw-semibold small text-primary" for="settleModePartial">Partial / On Account (FIFO Allocation)</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3" id="settleAmountWrap">
+                    <label class="form-label fw-semibold" id="settleAmountLabel">Payment Amount (₹) *</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light fw-bold">₹</span>
+                        <input type="number" step="0.01" min="0.01" name="settlement_amount" id="settlementAmountInput" class="form-control fw-bold text-success" placeholder="0.00" oninput="onSettlementAmountInput()" readonly>
+                    </div>
+                    <div class="small text-muted mt-1" id="settleAmountHint">Full amount of selected challans.</div>
+                </div>
+                <div class="col-6 col-md-3">
                     <label class="form-label fw-semibold">Batch Status</label>
                     <div class="border rounded px-3 py-1 bg-light fw-semibold text-warning" style="font-size:0.9rem">Pending Authorisation</div>
                 </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">Process Note</label>
-                    <div class="border rounded px-3 py-1 bg-light small text-muted">
-                        Payment details are not required while recording the batch. Accounts can enter payment mode, UTR/reference, and bank name while authorising the batch in Payment Register.
+
+                <div class="col-12 col-md-5">
+                    <label class="form-label fw-semibold">Settlement Summary</label>
+                    <div class="border rounded px-3 py-2 bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Challans Selected:</span>
+                            <strong id="selCount" class="text-primary fs-6">0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Total Selected Dues:</span>
+                            <strong id="selTotalDues" class="text-dark">₹0.00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted fw-semibold">Paying Now (This Batch):</span>
+                            <strong id="selNet" class="text-success fs-6">₹0.00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-1 border-top" id="standingSummaryWrap">
+                            <span class="small text-danger fw-semibold">Remaining Standing Balance:</span>
+                            <strong id="selStanding" class="text-danger fs-6">₹0.00</strong>
+                        </div>
                     </div>
                 </div>
-                <div class="col-12 col-md-4">
-                    <label class="form-label fw-semibold">Selected Summary</label>
-                    <div class="border rounded px-3 py-2 bg-light d-flex justify-content-between align-items-center">
-                        <div class="small text-muted">Challans: <strong id="selCount" class="text-primary fs-6">0</strong></div>
-                        <div class="small text-muted">Net Payable: <strong id="selNet" class="text-success fs-6">₹0.00</strong></div>
+
+                <div class="col-12 col-md-7">
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Remarks</label>
+                            <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Common remarks for this batch">
+                        </div>
+                        <div class="col-12">
+                            <div class="alert alert-light border py-2 px-3 mb-0 small text-muted d-flex align-items-start gap-2" id="fifoLiveExplainer">
+                                <i class="bi bi-info-circle text-primary mt-1"></i>
+                                <span id="fifoNoteText">Select challans to calculate settlement distribution.</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-12 col-md-8">
-                    <label class="form-label fw-semibold">Remarks</label>
-                    <input type="text" name="remarks" class="form-control form-control-sm" placeholder="Common remarks for this batch">
                 </div>
             </div>
         </div>
@@ -708,7 +878,7 @@ include '../includes/header.php';
     <div class="card border shadow-sm rounded-3 overflow-hidden mb-4">
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 px-3"
              style="background: linear-gradient(135deg, #1e293b 0%, #1e3a8a 100%); color: #ffffff;">
-            <div class="fw-bold"><i class="bi bi-list-check me-2"></i><?= htmlspecialchars($selected_group['name']) ?> — Select Challans for Batch</div>
+            <div class="fw-bold"><i class="bi bi-list-check me-2"></i><?= htmlspecialchars($selected_group['name']) ?> — Select Challans for Batch (FIFO by Date)</div>
             <div class="d-flex gap-2 align-items-center flex-wrap">
                 <span class="badge bg-white text-danger fw-bold">Outstanding ₹<?= number_format($selected_group['total_balance'],2) ?></span>
                 <button type="button" class="btn btn-sm btn-light bg-opacity-25 text-white" onclick="toggleAllBulk(true)">Select All</button>
@@ -720,16 +890,18 @@ include '../includes/header.php';
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="width:60px">Pay</th>
+                            <th style="width:50px">Pay</th>
                             <th>Challan / LR</th>
                             <th>Date</th>
                             <th>Vendor</th>
                             <th class="text-end">Remaining Freight</th>
-                            <th class="text-end">GST on This Pay</th>
+                            <th class="text-end">GST</th>
                             <th class="text-end">TDS</th>
-                            <th class="text-end">Misc (No GST)</th>
+                            <th class="text-end">Misc</th>
                             <th>Hold GST</th>
-                            <th class="text-end">Net Payable</th>
+                            <th class="text-end">Net Due</th>
+                            <th class="text-end bg-success-subtle fw-bold">Paying Now (FIFO)</th>
+                            <th class="text-end bg-warning-subtle fw-bold">Standing Balance</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -747,7 +919,7 @@ include '../includes/header.php';
                             $row_badge = $release_only ? 'info text-dark' : ($gst_balance_only ? 'primary' : (empty($row['_selectable']) ? 'secondary' : 'success'));
                             $row_label = $release_only ? 'GST Release' : ($gst_balance_only ? 'GST Balance' : (empty($row['_selectable']) ? 'No Balance' : 'Ready'));
                         ?>
-                        <tr class="<?= $release_only ? 'table-info' : ($gst_balance_only ? 'table-primary' : (empty($row['_selectable']) ? 'table-secondary' : '')) ?>">
+                        <tr class="<?= $release_only ? 'table-info' : ($gst_balance_only ? 'table-primary' : (empty($row['_selectable']) ? 'table-secondary' : '')) ?>" id="row_<?= (int)$row['id'] ?>">
                             <td>
                                 <?php if (!empty($row['_selectable'])): ?>
                                 <input type="checkbox"
@@ -755,6 +927,8 @@ include '../includes/header.php';
                                        name="selected_despatch[]"
                                        value="<?= (int)$row['id'] ?>"
                                        data-id="<?= (int)$row['id'] ?>"
+                                       data-challan="<?= htmlspecialchars($row['challan_no'] ?: $row['despatch_no'], ENT_QUOTES) ?>"
+                                       data-date="<?= htmlspecialchars((string)($row['despatch_date'] ?? ''), ENT_QUOTES) ?>"
                                        data-base="<?= number_format($freight, 2, '.', '') ?>"
                                        data-gst="<?= number_format($gst_amount, 2, '.', '') ?>"
                                        data-tds="<?= number_format($tds_amount, 2, '.', '') ?>"
@@ -803,6 +977,8 @@ include '../includes/header.php';
                                 <?php endif; ?>
                             </td>
                             <td class="text-end fw-bold" id="netCell<?= (int)$row['id'] ?>">₹<?= number_format($default_net,2) ?></td>
+                            <td class="text-end fw-bold text-success bg-success-subtle" id="allocCell<?= (int)$row['id'] ?>">—</td>
+                            <td class="text-end fw-bold text-danger bg-warning-subtle" id="standingCell<?= (int)$row['id'] ?>">—</td>
                             <td>
                                 <span class="badge bg-<?= $row_badge ?>"><?= $row_label ?></span>
                                 <?php if ((float)$row['_net_gst_hold'] > 0): ?><br><small class="text-warning">Held GST ₹<?= number_format((float)$row['_net_gst_hold'],2) ?></small><?php endif; ?>
@@ -818,11 +994,38 @@ include '../includes/header.php';
 
 <script>
 function fmtMoney(v) {
-    return '₹' + (parseFloat(v || 0).toFixed(2));
+    return '₹' + (parseFloat(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 }
+
+function onSettlementModeChange() {
+    var isPartial = document.getElementById('settleModePartial').checked;
+    var input = document.getElementById('settlementAmountInput');
+    var hint = document.getElementById('settleAmountHint');
+    if (isPartial) {
+        input.removeAttribute('readonly');
+        input.classList.remove('bg-light');
+        hint.innerHTML = '<span class="text-primary fw-semibold"><i class="bi bi-arrow-down-right me-1"></i>Amount will be distributed FIFO to clear oldest bills first.</span>';
+        if (parseFloat(input.value || 0) <= 0) {
+            input.focus();
+        }
+    } else {
+        input.setAttribute('readonly', 'readonly');
+        input.classList.add('bg-light');
+        hint.textContent = 'Full amount of selected challans.';
+    }
+    updateBulkSummary();
+}
+
+function onSettlementAmountInput() {
+    updateBulkSummary();
+}
+
 function updateBulkSummary() {
-    var selected = 0;
-    var totalNet = 0;
+    var isPartial = document.getElementById('settleModePartial').checked;
+    var amountInput = document.getElementById('settlementAmountInput');
+    var checkedBoxes = [];
+    var totalSelectedNet = 0;
+
     document.querySelectorAll('.bulk-check').forEach(function(cb) {
         var id = cb.dataset.id;
         var hold = document.getElementById('hold' + id);
@@ -831,25 +1034,120 @@ function updateBulkSummary() {
         var tds = parseFloat(cb.dataset.tds || 0);
         var misc = parseFloat(cb.dataset.misc || 0);
         var includeGst = !(hold && hold.checked);
-        var net = base + (includeGst ? gst : 0) - tds + misc;
+        var net = Math.round((base + (includeGst ? gst : 0) - tds + misc) * 100) / 100;
+        
         var cell = document.getElementById('netCell' + id);
         if (cell) cell.textContent = fmtMoney(net);
+
         if (cb.checked) {
-            selected++;
-            totalNet += net;
+            checkedBoxes.push({
+                id: id,
+                net: net,
+                challan: cb.dataset.challan || ('#' + id),
+                date: cb.dataset.date || ''
+            });
+            totalSelectedNet += net;
+        } else {
+            var allocCell = document.getElementById('allocCell' + id);
+            var standingCell = document.getElementById('standingCell' + id);
+            if (allocCell) allocCell.innerHTML = '<span class="text-muted">—</span>';
+            if (standingCell) standingCell.innerHTML = '<span class="text-muted">—</span>';
         }
     });
-    document.getElementById('selCount').textContent = selected;
-    document.getElementById('selNet').textContent = fmtMoney(totalNet);
+
+    totalSelectedNet = Math.round(totalSelectedNet * 100) / 100;
+    var selectedCount = checkedBoxes.length;
+
+    var budget = 0;
+    if (isPartial) {
+        var rawVal = parseFloat(amountInput.value);
+        if (isNaN(rawVal) || rawVal < 0) rawVal = 0;
+        budget = Math.round(rawVal * 100) / 100;
+        if (budget > totalSelectedNet && totalSelectedNet > 0) {
+            budget = totalSelectedNet;
+            amountInput.value = budget.toFixed(2);
+        }
+    } else {
+        budget = totalSelectedNet;
+        amountInput.value = totalSelectedNet.toFixed(2);
+    }
+
+    var remainingBudget = budget;
+    var totalAllocated = 0;
+    var totalStanding = 0;
+    var fullySettledCount = 0;
+    var partialChallanInfo = null;
+
+    checkedBoxes.forEach(function(item) {
+        var id = item.id;
+        var rowNet = item.net;
+        var allocCell = document.getElementById('allocCell' + id);
+        var standingCell = document.getElementById('standingCell' + id);
+
+        if (remainingBudget <= 0.004) {
+            // No budget left for this bill
+            if (allocCell) allocCell.innerHTML = '<span class="badge bg-secondary">₹0.00</span>';
+            if (standingCell) standingCell.innerHTML = '<span class="badge bg-danger">' + fmtMoney(rowNet) + ' (Unpaid)</span>';
+            totalStanding += rowNet;
+        } else if (remainingBudget >= rowNet - 0.005) {
+            // Full allocation for this bill
+            var alloc = rowNet;
+            remainingBudget = Math.max(0, Math.round((remainingBudget - alloc) * 100) / 100);
+            totalAllocated += alloc;
+            fullySettledCount++;
+            if (allocCell) allocCell.innerHTML = '<span class="badge bg-success">' + fmtMoney(alloc) + '</span>';
+            if (standingCell) standingCell.innerHTML = '<span class="text-success small fw-semibold"><i class="bi bi-check2 me-1"></i>₹0.00 (Cleared)</span>';
+        } else {
+            // Partial allocation for this bill
+            var alloc = Math.round(remainingBudget * 100) / 100;
+            var standing = Math.round((rowNet - alloc) * 100) / 100;
+            remainingBudget = 0;
+            totalAllocated += alloc;
+            totalStanding += standing;
+            partialChallanInfo = { challan: item.challan, standing: standing, alloc: alloc };
+            if (allocCell) allocCell.innerHTML = '<span class="badge bg-warning text-dark">' + fmtMoney(alloc) + ' (Partial)</span>';
+            if (standingCell) standingCell.innerHTML = '<span class="badge bg-danger">' + fmtMoney(standing) + ' Standing</span>';
+        }
+    });
+
+    totalAllocated = Math.round(totalAllocated * 100) / 100;
+    totalStanding = Math.round((totalSelectedNet - totalAllocated) * 100) / 100;
+
+    document.getElementById('selCount').textContent = selectedCount;
+    document.getElementById('selTotalDues').textContent = fmtMoney(totalSelectedNet);
+    document.getElementById('selNet').textContent = fmtMoney(totalAllocated);
+    document.getElementById('selStanding').textContent = fmtMoney(totalStanding);
+
+    // Update FIFO Explainer Box
+    var noteEl = document.getElementById('fifoNoteText');
+    if (selectedCount === 0) {
+        noteEl.innerHTML = 'Select challans from the list below to begin bulk or partial FIFO settlement.';
+    } else if (!isPartial || totalStanding <= 0.004) {
+        noteEl.innerHTML = '<strong>Full Settlement Mode:</strong> All <strong>' + selectedCount + '</strong> selected challan(s) will be fully settled for <strong>' + fmtMoney(totalSelectedNet) + '</strong>.';
+    } else {
+        var msg = '<strong>FIFO Partial Settlement:</strong> <strong>' + fmtMoney(totalAllocated) + '</strong> allocated across selected challan(s). ';
+        if (fullySettledCount > 0) {
+            msg += '<strong>' + fullySettledCount + '</strong> challan(s) fully cleared. ';
+        }
+        if (partialChallanInfo) {
+            msg += 'Challan <strong>' + partialChallanInfo.challan + '</strong> receives <strong>' + fmtMoney(partialChallanInfo.alloc) + '</strong> with <strong class="text-danger">' + fmtMoney(partialChallanInfo.standing) + '</strong> remaining standing balance. ';
+        }
+        msg += 'Total standing balance: <strong class="text-danger">' + fmtMoney(totalStanding) + '</strong>.';
+        noteEl.innerHTML = msg;
+    }
 }
+
 function toggleAllBulk(flag) {
     document.querySelectorAll('.bulk-check').forEach(function(cb) { cb.checked = flag; });
     updateBulkSummary();
 }
-document.querySelectorAll('.bulk-check, .bulk-hold-check').forEach(function(el) {
-    el.addEventListener('change', updateBulkSummary);
-});
-updateBulkSummary();
+
+document.querySelectorAll('.bulk-check, .bulk-hold-check').forEach(function(el) {
+    el.addEventListener('change', updateBulkSummary);
+});
+
+// Initial run
+onSettlementModeChange();
 </script>
 
 <style>
