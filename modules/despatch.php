@@ -819,6 +819,11 @@ if (isset($_GET['delete'])) {
 
 if (isset($_GET['cancel_id'])) {
 
+    if (!isAdmin()) {
+        showAlert('danger', 'Admin rights required to cancel a despatch order.');
+        redirect('despatch.php');
+    }
+
     requirePerm('despatch', 'update');
 
     $cid = (int)$_GET['cancel_id'];
@@ -968,6 +973,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $data = [];
 
     foreach ($f as $key) $data[$key] = sanitize($_POST[$key] ?? '');
+
+    if (($data['status'] ?? '') === 'Cancelled' && !isAdmin()) {
+        if ($id > 0) {
+            $orig_status = $db->query("SELECT status FROM despatch_orders WHERE id=$id LIMIT 1")->fetch_assoc()['status'] ?? 'In Transit';
+            $data['status'] = $orig_status;
+        } else {
+            $data['status'] = 'In Transit';
+        }
+    }
 
     // Strip backslashes from address fields (prevent DB corruption from over-escaping)
 
@@ -2722,9 +2736,8 @@ window.DMSWeather = (function() {
             <select name="status" class="form-select" onchange="onStatusChange(this)">
 
                 <?php foreach(['In Transit','Delivered','Cancelled'] as $s): ?>
-
+                <?php if ($s === 'Cancelled' && !isAdmin() && ($despatch['status'] ?? 'Draft') !== 'Cancelled') continue; ?>
                 <option value="<?= $s ?>" <?= ($despatch['status']??'Draft')==$s?'selected':'' ?>><?= $s ?></option>
-
                 <?php endforeach; ?>
 
             </select>

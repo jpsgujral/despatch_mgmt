@@ -492,6 +492,13 @@ if (isset($_GET['setstatus']) && $id) {
         }
     }
     $ns = normalizeTripWorkflowStatus(sanitize($_GET['setstatus']));
+    if ($ns === 'Cancelled' && !isAdmin()) {
+        showAlert('danger', 'Admin rights required to cancel a trip order.');
+        if (isset($_GET['from']) && $_GET['from'] === 'list') {
+            redirect($trip_back_url);
+        }
+        redirect('fleet_trips.php?action=view&id=' . $id . '&back=' . urlencode($trip_back_url));
+    }
     if (in_array($ns, ['Planned','In Transit','Completed','Cancelled'], true)) {
         $extra = '';
         if ($ns === 'In Transit') $extra = ", start_date='" . date('Y-m-d') . "'";
@@ -636,6 +643,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_trip'])) {
     $unloading = (float)($_POST['unloading_charges'] ?? 0);
     $other     = (float)($_POST['other_expenses']  ?? 0);
     $status    = normalizeTripWorkflowStatus($toScalar(sanitize($_POST['status']  ?? 'Planned'), 'Planned'));
+    if ($status === 'Cancelled' && !isAdmin()) {
+        if ($id > 0) {
+            $orig_trip = $db->query("SELECT status FROM fleet_trips WHERE id=$id LIMIT 1")->fetch_assoc();
+            $status = normalizeTripWorkflowStatus($orig_trip['status'] ?? 'Planned');
+        } else {
+            $status = 'Planned';
+        }
+    }
     $remarks   = $toScalar(sanitize($_POST['remarks'] ?? ''));
     $co_id     = (int)($_POST['company_id'] ?? activeCompanyId());
 
@@ -1414,7 +1429,7 @@ foreach ($trips as $t) {
                 <?php if (!$is_lease_agent_user && canDo('fleet_trips','update') && $trip_status !== 'Cancelled'): ?>
                 <a href="?action=edit&id=<?= $t['id'] ?>&back=<?= urlencode($_SERVER['REQUEST_URI'] ?? 'fleet_trips.php') ?>" class="btn btn-action btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
                 <?php endif; ?>
-                <?php if (!$is_lease_agent_user && canDo('fleet_trips','update') && in_array($trip_status, ['Planned', 'In Transit'], true)): ?>
+                <?php if (isAdmin() && in_array($trip_status, ['Planned', 'In Transit'], true)): ?>
                 <a href="?setstatus=Cancelled&id=<?= $t['id'] ?>&from=list&back=<?= urlencode($_SERVER['REQUEST_URI'] ?? 'fleet_trips.php') ?>" onclick="return confirm('Cancel trip <?= htmlspecialchars($t['trip_no'], ENT_QUOTES) ?>?')" class="btn btn-action btn-outline-warning" title="Cancel Trip"><i class="bi bi-x-circle"></i></a>
                 <?php endif; ?>
                 <?php if (!$is_lease_agent_user && $trip_status === 'Completed' && $can_manage_trip_billing && $is_trip_register_view): ?>
@@ -2119,7 +2134,7 @@ $sc  = $status_colors[$trip_status] ?? 'secondary';
         <?php elseif (!$is_lease_agent_user && $trip_status === 'In Transit'): ?>
         <a href="?setstatus=Completed&id=<?= $id ?>&back=<?= urlencode($trip_back_url) ?>" class="btn btn-success btn-sm" onclick="return confirm('Mark as Completed?')"><i class="bi bi-check-circle me-1"></i>Complete Trip</a>
         <?php endif; ?>
-        <?php if (!$is_lease_agent_user && canDo('fleet_trips','update') && in_array($trip_status, ['Planned', 'In Transit'], true)): ?>
+        <?php if (isAdmin() && in_array($trip_status, ['Planned', 'In Transit'], true)): ?>
         <a href="?setstatus=Cancelled&id=<?= $id ?>&back=<?= urlencode($trip_back_url) ?>" class="btn btn-outline-warning btn-sm" onclick="return confirm('Are you sure you want to cancel this trip?')"><i class="bi bi-x-circle me-1"></i>Cancel Trip</a>
         <?php endif; ?>
         <a href="fleet_trip_challan.php?id=<?= $id ?>" target="_blank" class="btn btn-outline-success btn-sm"><i class="bi bi-printer me-1"></i>Print</a>
@@ -2755,6 +2770,7 @@ $trip_back_url = (!empty($_GET['back']) && strpos($_GET['back'], 'view=register'
         <label class="form-label">Status</label>
         <select name="status" id="tripStatus" class="form-select">
             <?php foreach (['Planned', 'In Transit', 'Completed', 'Cancelled'] as $st): ?>
+            <?php if ($st === 'Cancelled' && !isAdmin() && ($t['status'] ?? 'Planned') !== 'Cancelled') continue; ?>
             <option value="<?= $st ?>" <?= ($t['status'] ?? 'Planned') === $st ? 'selected' : '' ?>><?= $st ?></option>
             <?php endforeach; ?>
         </select>
