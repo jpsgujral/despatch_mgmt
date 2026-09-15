@@ -506,6 +506,9 @@ if (isset($_GET['setstatus']) && $id) {
         }
         showAlert('success', "Status updated to $ns.");
     }
+    if (isset($_GET['from']) && $_GET['from'] === 'list') {
+        redirect($trip_back_url);
+    }
     redirect('fleet_trips.php?action=view&id=' . $id . '&back=' . urlencode($trip_back_url));
 }
 
@@ -1411,6 +1414,9 @@ foreach ($trips as $t) {
                 <?php if (!$is_lease_agent_user && canDo('fleet_trips','update') && $trip_status !== 'Cancelled'): ?>
                 <a href="?action=edit&id=<?= $t['id'] ?>&back=<?= urlencode($_SERVER['REQUEST_URI'] ?? 'fleet_trips.php') ?>" class="btn btn-action btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
                 <?php endif; ?>
+                <?php if (!$is_lease_agent_user && canDo('fleet_trips','update') && in_array($trip_status, ['Planned', 'In Transit'], true)): ?>
+                <a href="?setstatus=Cancelled&id=<?= $t['id'] ?>&from=list&back=<?= urlencode($_SERVER['REQUEST_URI'] ?? 'fleet_trips.php') ?>" onclick="return confirm('Cancel trip <?= htmlspecialchars($t['trip_no'], ENT_QUOTES) ?>?')" class="btn btn-action btn-outline-warning" title="Cancel Trip"><i class="bi bi-x-circle"></i></a>
+                <?php endif; ?>
                 <?php if (!$is_lease_agent_user && $trip_status === 'Completed' && $can_manage_trip_billing && $is_trip_register_view): ?>
                 <button type="button"
                         class="btn btn-action btn-outline-secondary"
@@ -2112,6 +2118,9 @@ $sc  = $status_colors[$trip_status] ?? 'secondary';
         <a href="?setstatus=In+Transit&id=<?= $id ?>&back=<?= urlencode($trip_back_url) ?>" class="btn btn-warning btn-sm" onclick="return confirm('Start trip?')"><i class="bi bi-truck me-1"></i>Start Trip</a>
         <?php elseif (!$is_lease_agent_user && $trip_status === 'In Transit'): ?>
         <a href="?setstatus=Completed&id=<?= $id ?>&back=<?= urlencode($trip_back_url) ?>" class="btn btn-success btn-sm" onclick="return confirm('Mark as Completed?')"><i class="bi bi-check-circle me-1"></i>Complete Trip</a>
+        <?php endif; ?>
+        <?php if (!$is_lease_agent_user && canDo('fleet_trips','update') && in_array($trip_status, ['Planned', 'In Transit'], true)): ?>
+        <a href="?setstatus=Cancelled&id=<?= $id ?>&back=<?= urlencode($trip_back_url) ?>" class="btn btn-outline-warning btn-sm" onclick="return confirm('Are you sure you want to cancel this trip?')"><i class="bi bi-x-circle me-1"></i>Cancel Trip</a>
         <?php endif; ?>
         <a href="fleet_trip_challan.php?id=<?= $id ?>" target="_blank" class="btn btn-outline-success btn-sm"><i class="bi bi-printer me-1"></i>Print</a>
         <a href="export_trip_pdf.php?id=<?= $id ?>" target="_blank" class="btn btn-outline-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
