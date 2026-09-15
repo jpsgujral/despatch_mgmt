@@ -1,0 +1,7 @@
+[2026-05-13 10:24:15] SUCCESS item_id=11 to=support@iflyash.com mode=mail
+[2026-05-13 10:29:59] FAILED item_id=11 to=support@iflyash.com err=SMTP send failed: SMTP Error: Could not authenticate.
+[2026-05-13 10:30:05] FAILED item_id=11 to=support@iflyash.com err=SMTP send failed: SMTP Error: Could not authenticate.
+[2026-05-13 10:30:16] FAILED item_id=11 to=support@iflyash.com err=SMTP send failed: SMTP Error: Could not authenticate.
+[2026-05-13 10:53:36] SUCCESS item_id=11 to=support@iflyash.com mode=mail
+[2026-05-14 06:31:39] SUCCESS item_id=11 to=support@iflyash.com mode=mail
+[2026-05-14 06:45:24] SUCCESS item_id=11 to=support@iflyash.com mode=mail

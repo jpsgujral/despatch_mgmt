@@ -1,0 +1,47 @@
+{
+  "name": "Fly Ash BMS",
+  "short_name": "Fly Ash BMS",
+  "description": "Fly Ash Business Management System",
+  "start_url": "/despatch_mgmt/",
+  "scope": "/despatch_mgmt/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b3a68",
+  "theme_color": "#0b3a68",
+  "icons": [
+    { "src": "/despatch_mgmt/assets/icons/icon-72x72.png?v=20260703-bms",   "sizes": "72x72",   "type": "image/png", "purpose": "any" },
+    { "src": "/despatch_mgmt/assets/icons/icon-72x72.png?v=20260703-bms",   "sizes": "72x72",   "type": "image/png", "purpose": "maskable" },
+    { "src": "/despatch_mgmt/assets/icons/icon-96x96.png?v=20260703-bms",   "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "/despatch_mgmt/assets/icons/icon-96x96.png?v=20260703-bms",   "sizes": "96x96",   "type": "image/png", "purpose": "maskable" },
+    { "src": "/despatch_mgmt/assets/icons/icon-128x128.png?v=20260703-bms", "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "/despatch_mgmt/assets/icons/icon-128x128.png?v=20260703-bms", "sizes": "128x128", "type": "image/png", "purpose": "maskable" },
+    { "src": "/despatch_mgmt/assets/icons/icon-144x144.png?v=20260703-bms", "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "/despatch_mgmt/assets/icons/icon-144x144.png?v=20260703-bms", "sizes": "144x144", "type": "image/png", "purpose": "maskable" },
+    { "src": "/despatch_mgmt/assets/icons/icon-152x152.png?v=20260703-bms", "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "/despatch_mgmt/assets/icons/icon-152x152.png?v=20260703-bms", "sizes": "152x152", "type": "image/png", "purpose": "maskable" },
+    { "src": "/despatch_mgmt/assets/icons/icon-192x192.png?v=20260703-bms", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/despatch_mgmt/assets/icons/icon-192x192.png?v=20260703-bms", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/despatch_mgmt/assets/icons/icon-384x384.png?v=20260703-bms", "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "/despatch_mgmt/assets/icons/icon-384x384.png?v=20260703-bms", "sizes": "384x384", "type": "image/png", "purpose": "maskable" },
+    { "src": "/despatch_mgmt/assets/icons/icon-512x512.png?v=20260703-bms", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/despatch_mgmt/assets/icons/icon-512x512.png?v=20260703-bms", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Despatch",
+      "short_name": "New Despatch",
+      "url": "/despatch_mgmt/modules/despatch.php?action=add",
+      "icons": [
+        { "src": "/despatch_mgmt/assets/icons/icon-96x96.png?v=20260703-bms", "sizes": "96x96", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "Trip Orders",
+      "short_name": "Trips",
+      "url": "/despatch_mgmt/modules/fleet_trips.php",
+      "icons": [
+        { "src": "/despatch_mgmt/assets/icons/icon-96x96.png?v=20260703-bms", "sizes": "96x96", "type": "image/png" }
+      ]
+    }
+  ]
+}

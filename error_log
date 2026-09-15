@@ -1,0 +1,198 @@
+[25-Mar-2026 11:29:55 UTC] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'delivery_date' in 'where clause' in /home/tsgimpex/public_html/despatch_mgmt/index.php:35
+Stack trace:
+#0 /home/tsgimpex/public_html/despatch_mgmt/index.php(35): mysqli->query('SELECT COUNT(*)...')
+#1 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 35
+[05-Apr-2026 15:41:46 UTC] PHP Parse error:  syntax error, unexpected identifier "SELECT", expecting ")" in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 39
+[14-Apr-2026 05:07:10 UTC] PHP Parse error:  Unclosed '{' on line 276 in /home/tsgimpex/public_html/despatch_mgmt/includes/config.php on line 385
+[14-Apr-2026 05:08:44 UTC] PHP Parse error:  Unclosed '{' on line 276 in /home/tsgimpex/public_html/despatch_mgmt/includes/config.php on line 385
+[14-Apr-2026 05:09:18 UTC] PHP Parse error:  Unclosed '{' on line 276 in /home/tsgimpex/public_html/despatch_mgmt/includes/config.php on line 385
+[15-May-2026 11:13:14 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[15-May-2026 11:13:14 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[15-May-2026 11:13:20 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[15-May-2026 11:13:20 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[15-May-2026 11:13:37 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[15-May-2026 11:13:37 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[15-May-2026 11:13:43 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[15-May-2026 11:13:43 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[15-May-2026 11:13:45 UTC] PHP Warning:  require_once(includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:13:45 UTC] PHP Fatal error:  Uncaught Error: Failed opening required 'includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:13:45 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/logout.php on line 2
+[15-May-2026 11:13:45 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/logout.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/logout.php on line 2
+[15-May-2026 11:14:04 UTC] PHP Warning:  require_once(includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:14:04 UTC] PHP Fatal error:  Uncaught Error: Failed opening required 'includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:16:18 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:16:18 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:16:18 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:16:18 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:16:19 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:16:19 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:16:19 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:16:19 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:18:05 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/login.php on line 2
+[15-May-2026 11:18:05 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/login.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/login.php on line 2
+[15-May-2026 11:18:51 UTC] PHP Warning:  require_once(includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:18:51 UTC] PHP Fatal error:  Uncaught Error: Failed opening required 'includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:18:53 UTC] PHP Warning:  require_once(includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:18:53 UTC] PHP Fatal error:  Uncaught Error: Failed opening required 'includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:18:55 UTC] PHP Warning:  require_once(includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:18:55 UTC] PHP Fatal error:  Uncaught Error: Failed opening required 'includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:26:24 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function opcache_reset() in Command line code:1
+Stack trace:
+#0 {main}
+  thrown in Command line code on line 1
+[15-May-2026 11:36:54 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:36:54 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:36:58 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[15-May-2026 11:36:58 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/index.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/index.php on line 2
+[16-May-2026 07:30:14 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:14 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:18 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:18 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:21 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:21 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:25 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:25 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:26 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:26 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:30 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:30 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:33 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:33 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:38 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:38 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:39 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:39 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:45 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:45 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:50 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:50 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:57 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:30:57 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:31:10 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[16-May-2026 07:31:10 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[21-May-2026 07:59:40 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[21-May-2026 07:59:40 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[21-May-2026 07:59:41 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/push_subscribe.php on line 2
+[21-May-2026 07:59:41 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/push_subscribe.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/push_subscribe.php on line 2
+[25-May-2026 11:24:39 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[25-May-2026 11:24:39 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[25-May-2026 11:24:39 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[25-May-2026 11:24:39 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[25-May-2026 11:24:51 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[25-May-2026 11:24:51 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[25-May-2026 11:24:51 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[25-May-2026 11:24:51 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[25-May-2026 11:25:03 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/includes/config.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2
+[25-May-2026 11:25:03 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/includes/config.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php:2
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/get_message_alerts.php on line 2

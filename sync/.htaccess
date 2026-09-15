@@ -1,0 +1,30 @@
+# Protect the sync folder — allow only localhost and your office IP
+# Edit the IP below to match your office's public IP or LAN IP
+
+Order Deny,Allow
+Deny from all
+
+# Allow localhost (XAMPP)
+Allow from 127.0.0.1
+Allow from ::1
+
+# Allow your office LAN (adjust subnet as needed)
+Allow from 192.168.1.0/24
+
+# Allow your live server IP (so it can call sync_api.php)
+# Allow from YOUR_LIVE_SERVER_IP
+
+# Log file — deny direct access always
+<Files "*.log">
+  Deny from all
+</Files>
+
+# Lock file — deny direct access always  
+<Files "*.lock">
+  Deny from all
+</Files>
+
+# PHP files — only allow sync_api.php and index.php via web
+<FilesMatch "^(sync_engine|sync_config)\.php$">
+  Deny from all
+</FilesMatch>

@@ -1,0 +1,74 @@
+[2026-04-20 16:30:36] [DAILY] STARTED
+[2026-04-21 04:49:04] [DAILY] STARTED
+[2026-04-21 07:00:33] [DAILY] STARTED
+[2026-04-21 07:03:38] [DAILY] STARTED
+[2026-04-21 07:04:07] [DAILY] STARTED
+[2026-04-21 07:13:07] [DAILY] STARTED
+[2026-04-21 07:13:07] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-21 07:13:11] [DAILY] INLINE OUTPUT:
+2026-04-21 07:13:11 OK: Daily report sent via SMTP to support@tsgimpex.com, tsgaccounts@tsgimpex.com
+[2026-04-21 14:51:41] [DAILY] STARTED
+[2026-04-21 14:51:41] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-21 14:51:45] [DAILY] INLINE OUTPUT:
+2026-04-21 14:51:45 OK: Daily report sent via SMTP to support@tsgimpex.com, tsgaccounts@tsgimpex.com
+[2026-04-25 06:05:33] [DAILY] STARTED
+[2026-04-25 06:05:33] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-25 06:05:35] [DAILY] INLINE ERROR: 2026-04-25 06:05:35 ERROR: SMTP Error: Could not authenticate.
+Daily report failed.
+[2026-04-25 06:16:07] [DAILY] STARTED
+[2026-04-25 06:16:07] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-25 06:16:09] [DAILY] INLINE OUTPUT:
+2026-04-25 06:16:09 OK: Daily report sent via mail transport after SMTP failure to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP error: SMTP Error: Could not authenticate.
+[2026-04-25 06:16:24] [DAILY] STARTED
+[2026-04-25 06:16:24] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-25 06:16:26] [DAILY] INLINE OUTPUT:
+2026-04-25 06:16:26 OK: Daily report sent via mail transport after SMTP failure to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP error: SMTP Error: Could not authenticate.
+[2026-04-25 06:20:20] [DAILY] STARTED
+[2026-04-25 06:20:20] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-25 06:20:22] [DAILY] INLINE OUTPUT:
+2026-04-25 06:20:22 OK: Daily report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.
+[2026-04-25 06:23:23] [DAILY] STARTED
+[2026-04-25 06:23:23] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-25 06:23:25] [DAILY] INLINE OUTPUT:
+2026-04-25 06:23:25 OK: Daily report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.
+[2026-04-25 06:26:18] [DAILY] STARTED
+[2026-04-25 06:26:18] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-25 06:26:20] [DAILY] INLINE OUTPUT:
+2026-04-25 06:26:20 OK: Daily report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.
+[2026-04-25 06:27:22] [DAILY] STARTED
+[2026-04-25 06:27:22] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-25 06:27:24] [DAILY] INLINE OUTPUT:
+2026-04-25 06:27:24 OK: Daily report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.
+[2026-04-25 06:29:22] [DAILY] STARTED
+[2026-04-25 06:29:22] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-25 06:29:24] [DAILY] INLINE OUTPUT:
+2026-04-25 06:29:24 OK: Daily report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.
+[2026-04-27 04:46:03] [DAILY] STARTED
+[2026-04-27 04:46:03] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-27 04:46:05] [DAILY] INLINE OUTPUT:
+2026-04-27 04:46:05 OK: Daily report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.
+[2026-04-29 15:21:56] [DAILY] STARTED
+[2026-04-29 15:21:56] [DAILY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-04-29 15:21:58] [DAILY] INLINE OUTPUT:
+2026-04-29 15:21:58 OK: Daily report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.
+[2026-05-01 06:28:28] [MONTHLY] STARTED
+[2026-05-01 06:28:28] [MONTHLY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-05-01 06:28:30] [MONTHLY] INLINE OUTPUT:
+2026-05-01 06:28:28 Starting monthly report for April 2026...
+2026-05-01 06:28:28 INFO: Attaching HTML report (PDF not available)
+2026-05-01 06:28:28 HTML report attached
+2026-05-01 06:28:30 OK: Monthly report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.
+[2026-05-04 11:21:42] [MONTHLY] STARTED
+[2026-05-04 11:21:42] [MONTHLY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-05-04 11:21:44] [MONTHLY] INLINE OUTPUT:
+2026-05-04 11:21:42 Starting monthly report for April 2026...
+2026-05-04 11:21:42 INFO: Attaching HTML report (PDF not available)
+2026-05-04 11:21:42 HTML report attached
+2026-05-04 11:21:44 OK: Monthly report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.
+[2026-05-04 11:22:52] [MONTHLY] STARTED
+[2026-05-04 11:22:52] [MONTHLY] BACKGROUND START FAILED: Process start function is disabled.
+[2026-05-04 11:22:54] [MONTHLY] INLINE OUTPUT:
+2026-05-04 11:22:52 Starting monthly report for May 2026...
+2026-05-04 11:22:52 INFO: Attaching HTML report (PDF not available)
+2026-05-04 11:22:52 HTML report attached
+2026-05-04 11:22:54 OK: Monthly report sent via mail transport after SMTP fallback to support@tsgimpex.com, tsgaccounts@tsgimpex.com | SMTP issue was: SMTP Error: Could not authenticate.

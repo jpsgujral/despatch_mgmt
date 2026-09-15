@@ -1,0 +1,11 @@
+[24-Mar-2026 08:11:52 UTC] PHP Warning:  require_once(/home/tsgimpex/public_html/despatch_mgmt/backup/../modules/header.php): Failed to open stream: No such file or directory in /home/tsgimpex/public_html/despatch_mgmt/backup/index.php on line 95
+[24-Mar-2026 08:11:52 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/tsgimpex/public_html/despatch_mgmt/backup/../modules/header.php' (include_path='.:/opt/cpanel/ea-php81/root/usr/share/pear') in /home/tsgimpex/public_html/despatch_mgmt/backup/index.php:95
+Stack trace:
+#0 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/backup/index.php on line 95
+[24-Mar-2026 08:16:51 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function exec() in /home/tsgimpex/public_html/despatch_mgmt/backup/BackupManager.php:258
+Stack trace:
+#0 /home/tsgimpex/public_html/despatch_mgmt/backup/BackupManager.php(47): BackupManager->dumpDatabase('backup_20260324...')
+#1 /home/tsgimpex/public_html/despatch_mgmt/backup/index.php(29): BackupManager->runFullBackup()
+#2 {main}
+  thrown in /home/tsgimpex/public_html/despatch_mgmt/backup/BackupManager.php on line 258

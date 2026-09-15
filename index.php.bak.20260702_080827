@@ -1,0 +1,847 @@
+<?php
+require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/auth.php';
+
+$db = getDB();
+
+$__uid = (int) ($_SESSION['user_id'] ?? 0);
+$__arow = $db->query("SELECT is_agent, view_all_despatch FROM app_users WHERE id=$__uid LIMIT 1")->fetch_assoc();
+$is_agent = !isAdmin() && !empty($__arow['is_agent']) && empty($__arow['view_all_despatch']);
+$agent_uid = $__uid;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_status_change'])) {
+    header('Content-Type: application/json');
+
+    $id = (int) ($_POST['id'] ?? 0);
+    $new_status = $_POST['new_status'] ?? '';
+    $allowed = ['In Transit', 'Delivered'];
+
+    if (!$id || !in_array($new_status, $allowed, true)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid request']);
+        exit;
+    }
+
+    $row = $db->query("SELECT status, total_weight FROM despatch_orders WHERE id=$id LIMIT 1")->fetch_assoc();
+    if (!$row) {
+        echo json_encode(['success' => false, 'message' => 'Order not found']);
+        exit;
+    }
+
+    $valid = ($row['status'] === 'Despatched' && $new_status === 'In Transit')
+        || ($row['status'] === 'In Transit' && $new_status === 'Delivered');
+    if (!$valid) {
+        echo json_encode(['success' => false, 'message' => 'Invalid transition']);
+        exit;
+    }
+
+    if ($new_status === 'Delivered' && (float) ($row['total_weight'] ?? 0) <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Please open the challan and enter delivered quantity before marking Delivered.']);
+        exit;
+    }
+
+    $db->query("UPDATE despatch_orders SET status='" . $db->real_escape_string($new_status) . "' WHERE id=$id");
+    echo json_encode(['success' => true, 'new_status' => $new_status]);
+    exit;
+}
+
+$dbname = $db->query("SELECT DATABASE()")->fetch_row()[0];
+$has_updated_at = $db->query("SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA='$dbname' AND TABLE_NAME='despatch_orders'
+    AND COLUMN_NAME='updated_at' LIMIT 1")->num_rows > 0;
+
+$_dash_desp_filter = $is_agent ? " AND (created_by=$agent_uid OR agent_id=$agent_uid)" : '';
+
+$today_count = $db->query("SELECT COUNT(*) c FROM despatch_orders WHERE DATE(despatch_date)=CURDATE() AND status!='Cancelled'" . $_dash_desp_filter)->fetch_assoc()['c'] ?? 0;
+$today_mt = $db->query("SELECT COALESCE(SUM(total_weight),0) w FROM despatch_orders WHERE DATE(despatch_date)=CURDATE() AND status!='Cancelled'" . $_dash_desp_filter)->fetch_assoc()['w'] ?? 0;
+$transit_count = $db->query("SELECT COUNT(*) c FROM despatch_orders WHERE status='In Transit'" . $_dash_desp_filter)->fetch_assoc()['c'] ?? 0;
+$transit_mt = $db->query("SELECT COALESCE(SUM(total_weight),0) w FROM despatch_orders WHERE status='In Transit'" . $_dash_desp_filter)->fetch_assoc()['w'] ?? 0;
+$po_pending = $db->query("SELECT COUNT(*) c FROM purchase_orders WHERE status IN ('Draft','Approved')")->fetch_assoc()['c'] ?? 0;
+$month_freight = $db->query("SELECT COALESCE(SUM(freight_amount),0) f FROM despatch_orders WHERE status='Delivered' AND total_weight > 0 AND MONTH(despatch_date)=MONTH(CURDATE()) AND YEAR(despatch_date)=YEAR(CURDATE())" . $_dash_desp_filter)->fetch_assoc()['f'] ?? 0;
+
+$delivered_month_freight = $db->query("SELECT COALESCE(SUM(freight_amount),0) f FROM despatch_orders WHERE status='Delivered' AND total_weight > 0 AND MONTH(despatch_date)=MONTH(CURDATE()) AND YEAR(despatch_date)=YEAR(CURDATE())" . $_dash_desp_filter)->fetch_assoc()['f'] ?? 0;
+$delivered_month_sales_ex_gst = $db->query("SELECT COALESCE(SUM(subtotal),0) s FROM despatch_orders WHERE status='Delivered' AND total_weight > 0 AND MONTH(despatch_date)=MONTH(CURDATE()) AND YEAR(despatch_date)=YEAR(CURDATE())" . $_dash_desp_filter)->fetch_assoc()['s'] ?? 0;
+if ($has_updated_at) {
+    $delivered_today = $db->query("SELECT COUNT(*) c FROM despatch_orders WHERE status='Delivered' AND DATE(updated_at)=CURDATE()" . $_dash_desp_filter)->fetch_assoc()['c'] ?? 0;
+} else {
+    $delivered_today = $db->query("SELECT COUNT(*) c FROM despatch_orders WHERE status='Delivered' AND DATE(despatch_date)=CURDATE()" . $_dash_desp_filter)->fetch_assoc()['c'] ?? 0;
+}
+
+$recent_despatches = $db->query("
+    SELECT d.*, t.transporter_name,
+           COALESCE(v.vendor_name, d.consignee_name) AS display_consignee
+    FROM despatch_orders d
+    LEFT JOIN transporters t ON d.transporter_id = t.id
+    LEFT JOIN vendors v ON d.vendor_id = v.id
+    WHERE d.despatch_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+      AND d.status != 'Cancelled'" . $_dash_desp_filter . "
+    ORDER BY d.despatch_date DESC, d.id DESC
+")->fetch_all(MYSQLI_ASSOC);
+
+$badges = ['Draft' => 'secondary', 'Despatched' => 'primary', 'In Transit' => 'warning', 'Delivered' => 'success', 'Cancelled' => 'danger'];
+$recent_status_counts = ['Draft' => 0, 'Despatched' => 0, 'In Transit' => 0, 'Delivered' => 0];
+foreach ($recent_despatches as $recent_row) {
+    if (isset($recent_status_counts[$recent_row['status']])) {
+        $recent_status_counts[$recent_row['status']]++;
+    }
+}
+unset($recent_row);
+
+$hero_primary_action = canDo('despatch', 'add')
+    ? ['href' => 'modules/despatch.php?action=add', 'label' => 'New Despatch', 'icon' => 'bi-send-plus']
+    : ['href' => 'modules/despatch.php', 'label' => 'Open Despatches', 'icon' => 'bi-send-check'];
+
+$secondary_actions = [];
+if (canDo('fleet_status', 'view')) {
+    $secondary_actions[] = ['href' => 'modules/fleet_status.php', 'label' => 'Vehicle Status', 'icon' => 'bi-map'];
+}
+if (canDo('fleet_trips', 'view')) {
+    $secondary_actions[] = ['href' => 'modules/fleet_trips.php?action=list', 'label' => 'Trip Orders', 'icon' => 'bi-signpost-split'];
+}
+if (canDo('transporter_payments', 'view')) {
+    $secondary_actions[] = ['href' => 'modules/transporter_payments.php', 'label' => 'Payments', 'icon' => 'bi-cash-coin'];
+}
+
+$smtp_settings = $db->query("SELECT smtp_host, smtp_user, smtp_pass FROM company_settings LIMIT 1")->fetch_assoc() ?: [];
+$smtp_ready = !empty(trim($smtp_settings['smtp_host'] ?? ''))
+    && !empty(trim($smtp_settings['smtp_user'] ?? ''))
+    && !empty(trim($smtp_settings['smtp_pass'] ?? ''));
+
+$ops_health = [
+    ['label' => 'Today', 'value' => (int) $today_count, 'sub' => number_format((float) $today_mt, 3) . ' MT', 'tone' => 'emerald'],
+    ['label' => 'In Transit', 'value' => (int) $transit_count, 'sub' => number_format((float) $transit_mt, 3) . ' MT', 'tone' => 'amber'],
+    ['label' => 'Delivered', 'value' => (int) $delivered_today, 'sub' => 'Completed today', 'tone' => 'blue'],
+    ['label' => 'Pending POs', 'value' => (int) $po_pending, 'sub' => 'Open approvals', 'tone' => 'slate'],
+];
+$show_admin_card_view = isAdmin();
+
+$statusCounts = [];
+foreach ($recent_despatches as $r) {
+    $statusCounts[$r['status']] = ($statusCounts[$r['status']] ?? 0) + 1;
+}
+$btnColors = ['Despatched' => 'btn-primary', 'In Transit' => 'btn-warning', 'Delivered' => 'btn-info text-dark', 'Cancelled' => 'btn-danger', 'Draft' => 'btn-secondary'];
+
+include 'includes/header.php';
+?>
+
+<script>document.getElementById('page-title').innerHTML = '<i class="bi bi-speedometer2 me-2"></i>Dashboard';</script>
+
+<?php if ($show_admin_card_view): ?>
+    <section class="dashboard-hero mb-4">
+        <div class="dashboard-hero__main">
+            <div class="dashboard-hero__eyebrow">Operations Overview</div>
+            <h2 class="dashboard-hero__title">
+                <?= htmlspecialchars($is_agent ? 'Your despatch pipeline' : 'Despatch control center') ?>
+            </h2>
+            <p class="dashboard-hero__copy">
+                Track movement, close pending work, and jump straight into today&apos;s most-used actions without digging
+                through the sidebar.
+            </p>
+            <div class="dashboard-hero__actions">
+                <a href="<?= htmlspecialchars($hero_primary_action['href']) ?>"
+                    class="btn btn-light dashboard-hero__primary">
+                    <i class="bi <?= htmlspecialchars($hero_primary_action['icon']) ?>"></i>
+                    <span><?= htmlspecialchars($hero_primary_action['label']) ?></span>
+                </a>
+                <?php foreach ($secondary_actions as $action): ?>
+                    <a href="<?= htmlspecialchars($action['href']) ?>" class="btn btn-outline-light dashboard-hero__secondary">
+                        <i class="bi <?= htmlspecialchars($action['icon']) ?>"></i>
+                        <span><?= htmlspecialchars($action['label']) ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <div class="dashboard-hero__panel">
+            <div class="dashboard-hero__panel-label">This Month</div>
+            <div class="dashboard-hero__panel-value">Rs.<?= number_format((float) $month_freight, 0) ?></div>
+            <div class="dashboard-hero__panel-sub">Total freight for Delivered challans after delivered quantity is entered
+            </div>
+            <div class="dashboard-mini-metrics">
+                <div>
+                    <span class="dashboard-mini-metrics__label">Delivered Freight (This Month)</span>
+                    <strong>Rs.<?= number_format((float) $delivered_month_freight, 0) ?></strong>
+                </div>
+                <div>
+                    <span class="dashboard-mini-metrics__label">Delivered Sales (ex-GST)</span>
+                    <strong>Rs.<?= number_format((float) $delivered_month_sales_ex_gst, 0) ?></strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <?php if (!$smtp_ready && canDo('company_settings', 'view')): ?>
+        <section class="dashboard-banner mb-4">
+            <div class="dashboard-banner__icon"><i class="bi bi-envelope-exclamation"></i></div>
+            <div class="dashboard-banner__content">
+                <strong>Report email is not configured.</strong>
+                <span>Complete SMTP Host, Username, and Password in Company Settings before using report email actions.</span>
+            </div>
+            <a href="modules/company_settings.php" class="btn btn-sm btn-outline-warning">Open Settings</a>
+        </section>
+    <?php endif; ?>
+
+    <section class="dashboard-grid mb-4">
+        <?php foreach ($ops_health as $metric): ?>
+            <article class="dashboard-stat dashboard-stat--<?= htmlspecialchars($metric['tone']) ?>">
+                <div class="dashboard-stat__label"><?= htmlspecialchars($metric['label']) ?></div>
+                <div class="dashboard-stat__value"><?= htmlspecialchars((string) $metric['value']) ?></div>
+                <div class="dashboard-stat__sub"><?= htmlspecialchars($metric['sub']) ?></div>
+            </article>
+        <?php endforeach; ?>
+    </section>
+
+    <section class="dashboard-content mb-4">
+        <div class="dashboard-summary">
+            <div class="dashboard-section-head__eyebrow">Snapshot</div>
+            <h3 class="dashboard-section-head__title">Current workload</h3>
+            <div class="dashboard-status-list">
+                <?php foreach ($recent_status_counts as $status => $count): ?>
+                    <div class="dashboard-status-row">
+                        <div class="dashboard-status-row__left">
+                            <span
+                                class="badge bg-<?= $badges[$status] ?? 'secondary' ?>"><?= htmlspecialchars($status) ?></span>
+                            <span class="dashboard-status-row__text">Last 7 days</span>
+                        </div>
+                        <strong><?= (int) $count ?></strong>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <div class="dashboard-summary">
+            <div class="dashboard-section-head__eyebrow">Shortcuts</div>
+            <h3 class="dashboard-section-head__title">Go straight to work</h3>
+            <div class="dashboard-shortcuts">
+                <a href="modules/despatch.php" class="dashboard-shortcut">
+                    <i class="bi bi-send-check"></i>
+                    <div>
+                        <strong>Despatch Orders</strong>
+                        <span>Create, update, and track challans</span>
+                    </div>
+                </a>
+                <a href="modules/fleet_status.php" class="dashboard-shortcut">
+                    <i class="bi bi-map"></i>
+                    <div>
+                        <strong>Vehicle Status</strong>
+                        <span>Track fleet movement and live board updates</span>
+                    </div>
+                </a>
+                <a href="modules/transporter_payments.php" class="dashboard-shortcut">
+                    <i class="bi bi-cash-coin"></i>
+                    <div>
+                        <strong>Transporter Payments</strong>
+                        <span>Monitor paid and pending settlements</span>
+                    </div>
+                </a>
+                <a href="modules/fleet_trips.php?action=list" class="dashboard-shortcut">
+                    <i class="bi bi-signpost-split"></i>
+                    <div>
+                        <strong>Trip Orders</strong>
+                        <span>Plan, dispatch, and monitor fleet trip workflow</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+<?php endif; ?>
+
+<section class="dashboard-table-shell">
+    <div class="dashboard-table-head">
+        <div>
+            <div class="dashboard-section-head__eyebrow">Activity Feed</div>
+            <h3 class="dashboard-section-head__title">Recent despatches</h3>
+        </div>
+        <div class="d-flex gap-1 flex-wrap" id="statusFilters">
+            <button class="btn btn-sm btn-light fw-bold active" onclick="filterStatus('All',this)">All</button>
+            <?php foreach ($statusCounts as $st => $cnt): ?>
+                <button class="btn btn-sm <?= $btnColors[$st] ?? 'btn-secondary' ?> fw-bold"
+                    onclick="filterStatus('<?= htmlspecialchars($st) ?>',this)">
+                    <?= htmlspecialchars($st) ?> <span class="badge bg-white text-dark ms-1"><?= (int) $cnt ?></span>
+                </button>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <div class="dashboard-table-wrap">
+        <?php if (empty($recent_despatches)): ?>
+            <div class="dashboard-empty">
+                <i class="bi bi-inbox"></i>
+                <div>No despatches in the last 7 days.</div>
+            </div>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0 align-middle" id="despTable">
+                    <thead>
+                        <tr>
+                            <th style="width:12%">Challan No</th>
+                            <th style="width:9%">Date</th>
+                            <th style="width:16%">Consignee</th>
+                            <th style="width:12%">Transporter</th>
+                            <th style="width:10%">Vehicle No</th>
+                            <th style="width:10%" class="text-end">MT</th>
+                            <th style="width:10%" class="text-end">Total Freight Rs.</th>
+                            <th style="width:10%">Status</th>
+                            <th style="width:13%">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($recent_despatches as $row): ?>
+                            <?php $st = $row['status'];
+                            $id = (int) $row['id']; ?>
+                            <tr data-status="<?= htmlspecialchars($st) ?>" data-id="<?= $id ?>">
+                                <td><a href="modules/despatch.php?action=edit&id=<?= $id ?>"
+                                        class="text-decoration-none fw-bold text-primary"><?= htmlspecialchars($row['challan_no']) ?></a>
+                                </td>
+                                <td class="fw-semibold text-dark"><?= date('d/m/y', strtotime($row['despatch_date'])) ?></td>
+                                <td>
+                                    <span
+                                        class="fw-semibold text-dark"><?= htmlspecialchars($row['display_consignee']) ?></span>
+                                    <?php if (!empty($row['consignee_city'])): ?>
+                                        <br><span class="text-secondary dashboard-table-meta"><i class="bi bi-geo-alt"></i>
+                                            <?= htmlspecialchars($row['consignee_city']) ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="fw-semibold text-dark"><?= htmlspecialchars($row['transporter_name'] ?? '-') ?></td>
+                                <td class="fw-semibold text-dark"><?= htmlspecialchars($row['vehicle_no'] ?? '-') ?></td>
+                                <td class="text-end fw-semibold text-dark">
+                                    <?= (float) $row['total_weight'] > 0 ? number_format((float) $row['total_weight'], 3) . ' MT' : '-' ?>
+                                </td>
+                                <td class="text-end fw-semibold text-dark">
+                                    <?= ($st === 'Delivered' && (float) $row['total_weight'] > 0 && (float) ($row['freight_amount'] ?? 0) > 0) ? 'Rs.' . number_format((float) $row['freight_amount'], 0) : '-' ?>
+                                </td>
+                                <td><span
+                                        class="badge bg-<?= $badges[$st] ?? 'secondary' ?> status-badge"><?= htmlspecialchars($st) ?></span>
+                                </td>
+                                <td>
+                                    <?php if ($st === 'Despatched'): ?>
+                                        <button class="btn btn-warning btn-sm dashboard-action-btn"
+                                            onclick="changeStatus(<?= $id ?>,'In Transit',this)">
+                                            <i class="bi bi-truck"></i> In Transit
+                                        </button>
+                                    <?php elseif ($st === 'In Transit'): ?>
+                                        <a href="modules/despatch.php?action=edit&id=<?= $id ?>"
+                                            class="btn btn-info btn-sm text-dark dashboard-action-btn">
+                                            <i class="bi bi-check-circle"></i> Enter Delivery
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="modules/despatch.php?action=edit&id=<?= $id ?>"
+                                            class="btn btn-outline-secondary btn-sm dashboard-action-btn">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
+</section>
+
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title mb-0" id="statusModalTitle">Confirm Status Change</h6>
+                <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-2" id="statusModalBody"></div>
+            <div class="modal-footer py-2">
+                <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary btn-sm" id="statusModalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dashboard-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(280px, .9fr);
+        gap: 18px;
+        background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 58%, #3b82f6 100%);
+        color: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 18px 40px rgba(30, 58, 138, 0.22);
+    }
+
+    .dashboard-hero__eyebrow,
+    .dashboard-section-head__eyebrow {
+        font-size: .72rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        opacity: .72;
+        margin-bottom: 8px;
+    }
+
+    .dashboard-hero__title,
+    .dashboard-section-head__title {
+        margin: 0;
+        font-size: clamp(1.35rem, 2.5vw, 2rem);
+        font-weight: 700;
+        line-height: 1.15;
+    }
+
+    .dashboard-hero__copy {
+        margin: 12px 0 0;
+        max-width: 58ch;
+        color: rgba(255, 255, 255, .84);
+        font-size: .96rem;
+    }
+
+    .dashboard-hero__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .dashboard-hero__primary,
+    .dashboard-hero__secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 42px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+    .dashboard-hero__panel {
+        background: rgba(255, 255, 255, .1);
+        border: 1px solid rgba(255, 255, 255, .14);
+        border-radius: 8px;
+        padding: 20px;
+        backdrop-filter: blur(6px);
+    }
+
+    .dashboard-hero__panel-label {
+        font-size: .76rem;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        opacity: .74;
+    }
+
+    .dashboard-hero__panel-value {
+        margin-top: 8px;
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        font-weight: 700;
+    }
+
+    .dashboard-hero__panel-sub {
+        margin-top: 6px;
+        color: rgba(255, 255, 255, .78);
+    }
+
+    .dashboard-mini-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+    }
+
+    .dashboard-mini-metrics>div {
+        background: rgba(255, 255, 255, .08);
+        border-radius: 8px;
+        padding: 12px;
+    }
+
+    .dashboard-mini-metrics__label {
+        display: block;
+        font-size: .73rem;
+        color: rgba(255, 255, 255, .72);
+        margin-bottom: 4px;
+    }
+
+    .dashboard-banner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        border-radius: 8px;
+        border: 1px solid #f1d089;
+        background: #fff6df;
+    }
+
+    .dashboard-banner__icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: rgba(255, 193, 7, .16);
+        color: #9a6700;
+        flex-shrink: 0;
+    }
+
+    .dashboard-banner__content {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .dashboard-stat {
+        background: #fff;
+        border: 1px solid rgba(20, 31, 17, .07);
+        border-radius: 8px;
+        padding: 16px 18px;
+        min-height: 112px;
+        box-shadow: 0 10px 22px rgba(16, 24, 40, .05);
+    }
+
+    .dashboard-stat__label {
+        color: #667085;
+        font-size: .8rem;
+    }
+
+    .dashboard-stat__value {
+        margin-top: 8px;
+        font-size: 1.95rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .dashboard-stat__sub {
+        margin-top: 8px;
+        color: #667085;
+        font-size: .82rem;
+    }
+
+    .dashboard-stat--emerald .dashboard-stat__value {
+        color: #175cd3;
+    }
+
+    .dashboard-stat--amber .dashboard-stat__value {
+        color: #b26a00;
+    }
+
+    .dashboard-stat--blue .dashboard-stat__value {
+        color: #175cd3;
+    }
+
+    .dashboard-stat--slate .dashboard-stat__value {
+        color: #344054;
+    }
+
+    .dashboard-content {
+        display: grid;
+        grid-template-columns: 1.05fr 1.25fr;
+        gap: 14px;
+    }
+
+    .dashboard-summary {
+        background: #fff;
+        border: 1px solid rgba(41, 64, 165, 0.07);
+        border-radius: 8px;
+        padding: 18px;
+        box-shadow: 0 10px 22px rgba(16, 24, 40, .05);
+    }
+
+    .dashboard-status-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .dashboard-status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid #eef2f6;
+    }
+
+    .dashboard-status-row:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .dashboard-status-row__left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .dashboard-status-row__text {
+        color: #667085;
+        font-size: .84rem;
+    }
+
+    .dashboard-shortcuts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .dashboard-shortcut {
+        display: flex;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid #e6ebf2;
+        border-radius: 8px;
+        text-decoration: none;
+        color: inherit;
+        transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+    }
+
+    .dashboard-shortcut:hover {
+        border-color: rgba(30, 58, 138, .30);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(16, 24, 40, .06);
+        color: inherit;
+    }
+
+    .dashboard-shortcut i {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        background: #eef7f1;
+        color: #1E3A8A;
+        border-radius: 8px;
+        font-size: 1.05rem;
+        flex-shrink: 0;
+    }
+
+    .dashboard-shortcut strong {
+        display: block;
+        font-size: .94rem;
+    }
+
+    .dashboard-shortcut span {
+        display: block;
+        margin-top: 4px;
+        color: #667085;
+        font-size: .82rem;
+    }
+
+    .dashboard-table-shell {
+        background: #fff;
+        border: 1px solid rgba(20, 31, 17, .07);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 10px 22px rgba(16, 24, 40, .05);
+    }
+
+    .dashboard-table-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 18px 18px 14px;
+        background: linear-gradient(180deg, #f5f8ff 0%, #ffffff 100%);
+        border-bottom: 1px solid #edf2f7;
+    }
+
+    .dashboard-table-head>div:first-child {
+        min-width: 0;
+    }
+
+    .dashboard-table-wrap {
+        overflow-x: auto;
+    }
+
+    .dashboard-table-meta {
+        font-size: .78rem;
+    }
+
+    .dashboard-action-btn {
+        font-size: .73rem;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .dashboard-empty {
+        min-height: 220px;
+        display: grid;
+        place-items: center;
+        gap: 8px;
+        color: #667085;
+        text-align: center;
+        padding: 24px;
+    }
+
+    .dashboard-empty i {
+        font-size: 1.6rem;
+        color: #98a2b3;
+    }
+
+    #despTable td,
+    #despTable th {
+        vertical-align: middle;
+    }
+
+    #despTable thead th {
+        background: #f9fafb;
+        color: #475467;
+        font-size: .77rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        border-bottom: 1px solid #eaecf0;
+    }
+
+    #statusFilters .btn.active {
+        box-shadow: 0 0 0 2px rgba(30, 58, 138, .20);
+        opacity: 1;
+    }
+
+    #statusFilters .btn:not(.active) {
+        opacity: 0.82;
+    }
+
+    @media (max-width: 991.98px) {
+
+        .dashboard-hero,
+        .dashboard-content {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .dashboard-hero {
+            padding: 18px;
+        }
+
+        .dashboard-shortcuts {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-table-head,
+        .dashboard-banner {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        #statusFilters {
+            width: 100%;
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #statusFilters .btn {
+            flex: 0 0 auto;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+
+        .dashboard-grid,
+        .dashboard-mini-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-hero__actions {
+            flex-direction: column;
+        }
+
+        .dashboard-hero__primary,
+        .dashboard-hero__secondary {
+            width: 100%;
+            justify-content: center;
+        }
+
+        #despTable th:last-child,
+        #despTable td:last-child {
+            min-width: 132px;
+        }
+
+        .dashboard-action-btn {
+            width: 100%;
+            min-height: 34px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+    }
+</style>
+
+<script>
+    function filterStatus(status, btn) {
+        document.querySelectorAll('#statusFilters .btn').forEach(function (b) {
+            b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        document.querySelectorAll('#despTable tbody tr').forEach(function (row) {
+            row.style.display = (status === 'All' || row.dataset.status === status) ? '' : 'none';
+        });
+    }
+
+    let _pendingId = null;
+    let _pendingStatus = null;
+    let _pendingBtn = null;
+
+    function changeStatus(id, newStatus, btn) {
+        _pendingId = id;
+        _pendingStatus = newStatus;
+        _pendingBtn = btn;
+
+        const icon = newStatus === 'Delivered' ? 'OK' : 'TR';
+        document.getElementById('statusModalBody').innerHTML =
+            icon + ' Mark <strong>Challan #' + btn.closest('tr').querySelector('td:first-child').innerText + '</strong> as <strong>' + newStatus + '</strong>?';
+        document.getElementById('statusModalTitle').textContent = 'Confirm: ' + newStatus;
+        new bootstrap.Modal(document.getElementById('statusModal')).show();
+    }
+
+    document.getElementById('statusModalConfirm').addEventListener('click', function () {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('statusModal'));
+        modal.hide();
+
+        const btn = _pendingBtn;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        const fd = new FormData();
+        fd.append('ajax_status_change', '1');
+        fd.append('id', _pendingId);
+        fd.append('new_status', _pendingStatus);
+
+        fetch(window.location.href, { method: 'POST', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    const row = btn.closest('tr');
+                    const badges = { 'Despatched': 'primary', 'In Transit': 'warning', 'Delivered': 'success' };
+                    row.querySelector('.status-badge').className =
+                        'badge bg-' + (badges[data.new_status] || 'secondary') + ' status-badge';
+                    row.querySelector('.status-badge').textContent = data.new_status;
+                    row.dataset.status = data.new_status;
+
+                    const td = btn.parentElement;
+                    if (data.new_status === 'In Transit') {
+                        td.innerHTML = '<a href="modules/despatch.php?action=edit&id=' + _pendingId + '" class="btn btn-info btn-sm text-dark dashboard-action-btn"><i class="bi bi-check-circle"></i> Enter Delivery</a>';
+                    } else if (data.new_status === 'Delivered') {
+                        td.innerHTML = '<a href="modules/despatch.php?action=edit&id=' + _pendingId + '" class="btn btn-outline-secondary btn-sm dashboard-action-btn"><i class="bi bi-eye"></i> View</a>';
+                    }
+                    setTimeout(function () { location.reload(); }, 800);
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.disabled = false;
+                    btn.innerHTML = _pendingStatus === 'In Transit'
+                        ? '<i class="bi bi-truck"></i> In Transit'
+                        : '<i class="bi bi-check-circle"></i> Delivered';
+                }
+            })
+            .catch(function () {
+                alert('Network error. Please refresh.');
+                btn.disabled = false;
+            });
+    });
+</script>
+
+<?php include 'includes/footer.php'; ?>

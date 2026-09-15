@@ -1,0 +1,5 @@
+Options -Indexes
+
+<FilesMatch "^(sync_config\.php|pull_from_live\.php|README\.md|.*\.log)$">
+    Require all denied
+</FilesMatch>
