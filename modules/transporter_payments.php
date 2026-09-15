@@ -209,12 +209,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $errors[] = 'Amount ₹'.number_format($amount_this_payment,2).' exceeds remaining freight ₹'.number_format($rem_base,2).'.';
 
                 $base_amount = $amount_this_payment;
-                $gst_amount  = ($t_gst_type !== 'RCM') ? round($base_amount * $t_gst_rate / 100, 2) : 0;
                 $tds_amount  = $t_tds_ok ? round($base_amount * $t_tds_rate / 100, 2) : 0;
                 $gst_type    = $t_gst_type;
                 $gst_rate    = $t_gst_rate;
                 $tds_rate    = $t_tds_rate;
-                $net_payable = round($base_amount + ($gst_held === 'Yes' ? 0 : $gst_amount) - $tds_amount, 2);
+
+                if ($gst_held === 'Yes') {
+                    $gst_amount  = ($t_gst_type !== 'RCM') ? round($base_amount * $t_gst_rate / 100, 2) : 0;
+                    $net_payable = round($base_amount - $tds_amount, 2);
+                } elseif (in_array($payment_type, ['Partial', 'Advance', 'Partial Settlement', 'Against LR'], true)) {
+                    // On-account partial freight payment: no GST withheld, GST remains due on balance
+                    $gst_amount  = 0;
+                    $net_payable = round($base_amount - $tds_amount, 2);
+                } else {
+                    // Full settlement: include GST
+                    $gst_amount  = ($t_gst_type !== 'RCM') ? round($base_amount * $t_gst_rate / 100, 2) : 0;
+                    $net_payable = round($base_amount + $gst_amount - $tds_amount, 2);
+                }
             }
             $amount = $net_payable;
         } else {
@@ -276,6 +287,14 @@ if ($action == 'edit' && $id > 0) {
     }
 }
 
+/* ── Auto-correct legacy partial payments where gst_held was mistakenly set to Yes ── */
+$db->query("UPDATE transporter_payments
+    SET gst_held = 'No', gst_amount = 0.00
+    WHERE payment_type IN ('Partial', 'Advance', 'Partial Settlement', 'Against LR')
+      AND gst_held = 'Yes'
+      AND (is_gst_release IS NULL OR is_gst_release != 'Yes')
+      AND amount = base_amount");
+
 /* ── Transporters ── */
 $transporters = $db->query("
     SELECT id, transporter_name, gst_type, gst_rate, tds_applicable, tds_rate
@@ -312,7 +331,9 @@ $due_rows = $db->query("
     LEFT JOIN app_users au ON au.id = d.agent_id
     WHERE d.freight_amount > 0 AND d.transporter_id IS NOT NULL AND d.status = 'Delivered'" . $tp_af . "
     GROUP BY d.id
-    HAVING (d.freight_amount - paid_base) > 0.009 OR (gst_on_hold - gst_released) > 0.009
+    HAVING (d.freight_amount - paid_base) > 0.009
+        OR (gst_on_hold - gst_released) > 0.009
+        OR ((CASE WHEN t.gst_type!='RCM' THEN (d.freight_amount * COALESCE(t.gst_rate,0) / 100) ELSE 0 END) - paid_gst_total) > 0.009
     ORDER BY d.despatch_date ASC
 ")->fetch_all(MYSQLI_ASSOC);
 
@@ -719,7 +740,7 @@ include '../includes/header.php';
     <!-- Payment method fields -->
     <div class="col-6 col-sm-4 col-md-2">
         <label class="form-label">Payment Type</label>
-        <select name="payment_type" id="paymentTypeSel" class="form-select form-select-sm">
+        <select name="payment_type" id="paymentTypeSel" class="form-select form-select-sm" onchange="onPaymentTypeChange()">
             <option value="Full Settlement" <?= (($payment['payment_type']??'')=='Full Settlement')?'selected':'' ?>>Full Settlement</option>
             <option value="Partial"         <?= (($payment['payment_type']??'')=='Partial')?'selected':'' ?>>Partial</option>
             <option value="Advance"         <?= (($payment['payment_type']??'')=='Advance')?'selected':'' ?>>Advance</option>
@@ -1769,6 +1790,17 @@ function deactivateGstRelease() {
     onAmountInput();
 }
 
+/* ── Payment type change ── */
+function onPaymentTypeChange() {
+    var pt = el('paymentTypeSel') ? el('paymentTypeSel').value : '';
+    if (pt === 'Release GST' || pt === 'GST Release') {
+        if (!gstRelMode) activateGstRelease();
+    } else {
+        if (gstRelMode) deactivateGstRelease();
+    }
+    onAmountInput();
+}
+
 /* ── GST Hold toggle ── */
 function onGstHoldChange() {
     var held = el('gstHoldToggle') && el('gstHoldToggle').value === 'Yes';
@@ -1789,16 +1821,32 @@ function onAmountInput() {
     var netThis, breakdown;
     if (gstRelMode) {
         netThis   = amt;
-        breakdown = 'GST release — no freight, no TDS';
+        breakdown = 'Release GST — no freight, no TDS';
         maxAllowed = D.gstOnHold;
     } else {
         var held    = el('gstHoldToggle') && el('gstHoldToggle').value === 'Yes';
-        var gstThis = (!D.isRCM && D.gstRate > 0) ? r2(amt * D.gstRate / 100) : 0;
+        var pt      = el('paymentTypeSel') ? el('paymentTypeSel').value : '';
+        var isPartialMode = ['Partial', 'Advance', 'Against LR'].indexOf(pt) !== -1;
         var tdsThis = D.tdsOk ? r2(amt * D.tdsRate / 100) : 0;
-        netThis     = r2(amt + (held ? 0 : gstThis) - tdsThis);
-        breakdown   = '₹' + fmt(amt)
-            + (gstThis > 0 ? (held ? ' + GST ₹' + fmt(gstThis) + ' (held)' : ' + GST ₹' + fmt(gstThis)) : '')
-            + (tdsThis > 0 ? ' − TDS ₹' + fmt(tdsThis) : '');
+
+        if (held) {
+            var gstThis = (!D.isRCM && D.gstRate > 0) ? r2(amt * D.gstRate / 100) : 0;
+            netThis     = r2(amt - tdsThis);
+            breakdown   = '₹' + fmt(amt)
+                + (gstThis > 0 ? ' + GST ₹' + fmt(gstThis) + ' (held for compliance)' : '')
+                + (tdsThis > 0 ? ' − TDS ₹' + fmt(tdsThis) : '');
+        } else if (isPartialMode) {
+            netThis     = r2(amt - tdsThis);
+            breakdown   = '₹' + fmt(amt)
+                + (tdsThis > 0 ? ' − TDS ₹' + fmt(tdsThis) : '')
+                + ' (On-account freight; GST remains due on balance)';
+        } else {
+            var gstThis = (!D.isRCM && D.gstRate > 0) ? r2(amt * D.gstRate / 100) : 0;
+            netThis     = r2(amt + gstThis - tdsThis);
+            breakdown   = '₹' + fmt(amt)
+                + (gstThis > 0 ? ' + GST ₹' + fmt(gstThis) : '')
+                + (tdsThis > 0 ? ' − TDS ₹' + fmt(tdsThis) : '');
+        }
         maxAllowed = D.remBase;
     }
 

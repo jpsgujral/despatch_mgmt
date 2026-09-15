@@ -292,7 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
             $gst_rate = (float)($r['gst_rate'] ?? 0);
             $tds_rate = ($is_release_only || $is_gst_balance_only) ? 0.0 : ((($r['tds_applicable'] ?? 'No') === 'Yes') ? (float)($r['tds_rate'] ?? 0) : 0.0);
             $gst_hold = (!$is_release_only && !$is_gst_balance_only && !empty($hold_gst_map[$despatch_id]) && $gst_type !== 'RCM' && $gst_rate > 0) ? 'Yes' : 'No';
-            $gst_amount = $is_release_only ? (float)$r['_net_gst_hold'] : ($is_gst_balance_only ? (float)$r['_gst_due'] : (($gst_type !== 'RCM') ? round($freight * $gst_rate / 100, 2) : 0.0));
+            $gst_amount = $is_release_only ? (float)$r['_net_gst_hold'] : (float)$r['_gst_due'];
             $tds_amount = $tds_rate > 0 ? round($freight * $tds_rate / 100, 2) : 0.0;
             $net_payable = ($is_release_only || $is_gst_balance_only) ? $gst_amount : round($freight + ($gst_hold === 'Yes' ? 0.0 : $gst_amount) - $tds_amount + $misc, 2);
 
@@ -374,31 +374,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
                             $alloc_gst = $alloc_net;
                             $alloc_tds = 0.0;
                         } else {
-                            $ratio = ($row_net > 0.001) ? ($alloc_net / $row_net) : 0.0;
-                            $alloc_misc = ($c['misc'] > 0) ? round($c['misc'] * $ratio, 2) : 0.0;
+                            $alloc_misc = min((float)$c['misc'], $alloc_net);
                             $net_for_freight = max(0.0, round($alloc_net - $alloc_misc, 2));
-                            $gst_mult = ($gst_hold === 'Yes' || $gst_type === 'RCM') ? 0.0 : ($gst_rate / 100);
-                            $tds_mult = $tds_rate / 100;
-                            $eff_mult = 1.0 + $gst_mult - $tds_mult;
 
-                            if ($eff_mult > 0.001) {
-                                $alloc_freight = min((float)$c['freight'], max(0.0, round($net_for_freight / $eff_mult, 2)));
+                            if ($gst_hold === 'Yes') {
+                                $tds_mult = $tds_rate / 100;
+                                $eff_mult = 1.0 - $tds_mult;
+                                $alloc_freight = ($eff_mult > 0.001) ? min((float)$c['freight'], max(0.0, round($net_for_freight / $eff_mult, 2))) : min((float)$c['freight'], $net_for_freight);
+                                $alloc_tds = ($tds_rate > 0) ? round($alloc_freight * $tds_rate / 100, 2) : 0.0;
+                                $alloc_gst = ($gst_type !== 'RCM' && $gst_rate > 0) ? round($alloc_freight * $gst_rate / 100, 2) : 0.0;
                             } else {
-                                $alloc_freight = min((float)$c['freight'], $net_for_freight);
+                                // Normal on-account payment: NO GST hold!
+                                $tds_mult = $tds_rate / 100;
+                                $eff_mult = 1.0 - $tds_mult;
+                                $alloc_freight = ($eff_mult > 0.001) ? min((float)$c['freight'], max(0.0, round($net_for_freight / $eff_mult, 2))) : min((float)$c['freight'], $net_for_freight);
+                                $alloc_tds = ($tds_rate > 0) ? round($alloc_freight * $tds_rate / 100, 2) : 0.0;
+                                $alloc_gst = 0.0;
                             }
-                            $alloc_gst = ($gst_type !== 'RCM' && $gst_rate > 0) ? round($alloc_freight * $gst_rate / 100, 2) : 0.0;
-                            $alloc_tds = ($tds_rate > 0) ? round($alloc_freight * $tds_rate / 100, 2) : 0.0;
 
                             // Reconcile penny difference to match exact alloc_net
                             $calc_net = round($alloc_freight + ($gst_hold === 'Yes' ? 0.0 : $alloc_gst) - $alloc_tds + $alloc_misc, 2);
                             $diff = round($alloc_net - $calc_net, 2);
                             if (abs($diff) > 0.001 && abs($diff) < 1.0) {
                                 $alloc_freight = max(0.0, round($alloc_freight + $diff, 2));
-                                if ($gst_type !== 'RCM' && $gst_rate > 0) {
-                                    $alloc_gst = round($alloc_freight * $gst_rate / 100, 2);
-                                }
                                 if ($tds_rate > 0) {
                                     $alloc_tds = round($alloc_freight * $tds_rate / 100, 2);
+                                }
+                                if ($gst_hold === 'Yes' && $gst_type !== 'RCM' && $gst_rate > 0) {
+                                    $alloc_gst = round($alloc_freight * $gst_rate / 100, 2);
                                 }
                             }
                         }
@@ -913,7 +916,7 @@ include '../includes/header.php';
                             $misc = ($release_only || $gst_balance_only) ? 0 : (float)($row['_rem_misc'] ?? 0);
                             $gst_amount = $release_only
                                 ? (float)$row['_net_gst_hold']
-                                : ($gst_balance_only ? (float)$row['_gst_due'] : ((($row['gst_type'] ?? '') !== 'RCM') ? round($freight * (float)($row['gst_rate'] ?? 0) / 100, 2) : 0));
+                                : (float)$row['_gst_due'];
                             $tds_amount = (!$release_only && !$gst_balance_only && ($row['tds_applicable'] ?? 'No') === 'Yes') ? round($freight * (float)($row['tds_rate'] ?? 0) / 100, 2) : 0;
                             $default_net = ($release_only || $gst_balance_only) ? $gst_amount : round($freight + $gst_amount - $tds_amount + $misc, 2);
                             $row_badge = $release_only ? 'info text-dark' : ($gst_balance_only ? 'primary' : (empty($row['_selectable']) ? 'secondary' : 'success'));
@@ -1032,9 +1035,15 @@ function updateBulkSummary() {
         var base = parseFloat(cb.dataset.base || 0);
         var gst = parseFloat(cb.dataset.gst || 0);
         var tds = parseFloat(cb.dataset.tds || 0);
-        var misc = parseFloat(cb.dataset.misc || 0);
-        var includeGst = !(hold && hold.checked);
-        var net = Math.round((base + (includeGst ? gst : 0) - tds + misc) * 100) / 100;
+        var isRel = cb.dataset.release === '1';
+        var isGstBal = cb.dataset.gstBalance === '1';
+        var net;
+        if (isRel || isGstBal) {
+            net = gst;
+        } else {
+            var includeGst = !(hold && hold.checked);
+            net = Math.round((base + (includeGst ? gst : 0) - tds + misc) * 100) / 100;
+        }
         
         var cell = document.getElementById('netCell' + id);
         if (cell) cell.textContent = fmtMoney(net);
