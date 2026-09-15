@@ -214,16 +214,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $gst_rate    = $t_gst_rate;
                 $tds_rate    = $t_tds_rate;
 
-                if ($gst_held === 'Yes') {
-                    $gst_amount  = ($t_gst_type !== 'RCM') ? round($base_amount * $t_gst_rate / 100, 2) : 0;
-                    $net_payable = round($base_amount - $tds_amount, 2);
-                } elseif (in_array($payment_type, ['Partial', 'Advance', 'Partial Settlement', 'Against LR'], true)) {
-                    // On-account partial freight payment: no GST withheld, GST remains due on balance
-                    $gst_amount  = 0;
+                if ($gst_held === 'Yes' || in_array($payment_type, ['Partial', 'Advance', 'Partial Settlement', 'Against LR'], true)) {
+                    // Money payment adjusted from net freight without GST; GST amount stands balance
+                    $gst_amount  = 0.0;
+                    $gst_held    = 'No';
                     $net_payable = round($base_amount - $tds_amount, 2);
                 } else {
-                    // Full settlement: include GST
+                    // Full settlement with GST
                     $gst_amount  = ($t_gst_type !== 'RCM') ? round($base_amount * $t_gst_rate / 100, 2) : 0;
+                    $gst_held    = 'No';
                     $net_payable = round($base_amount + $gst_amount - $tds_amount, 2);
                 }
             }

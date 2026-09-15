@@ -354,13 +354,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
                         $alloc_net = $row_net;
                         $remaining_budget = max(0.0, round($remaining_budget - $alloc_net, 2));
                         $alloc_freight = $c['freight'];
-                        $alloc_gst = $c['gst_amount'];
+                        $alloc_gst = ($gst_hold === 'Yes') ? 0.0 : $c['gst_amount'];
                         $alloc_tds = $c['tds_amount'];
                         $alloc_misc = $c['misc'];
                         $payment_type = $is_release_only ? 'Release GST' : ($is_gst_balance_only ? 'GST Balance' : 'Bulk Settlement');
                         $fully_settled_count++;
                     } else {
-                        // Partial settlement for this row
+                        // Partial settlement for this row: money payment adjusted from net freight without GST
                         $alloc_net = round($remaining_budget, 2);
                         $standing_on_row = max(0.0, round($row_net - $alloc_net, 2));
                         $standing_balance_total = round($standing_balance_total + $standing_on_row, 2);
@@ -377,31 +377,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
                             $alloc_misc = min((float)$c['misc'], $alloc_net);
                             $net_for_freight = max(0.0, round($alloc_net - $alloc_misc, 2));
 
-                            if ($gst_hold === 'Yes') {
-                                $tds_mult = $tds_rate / 100;
-                                $eff_mult = 1.0 - $tds_mult;
-                                $alloc_freight = ($eff_mult > 0.001) ? min((float)$c['freight'], max(0.0, round($net_for_freight / $eff_mult, 2))) : min((float)$c['freight'], $net_for_freight);
-                                $alloc_tds = ($tds_rate > 0) ? round($alloc_freight * $tds_rate / 100, 2) : 0.0;
-                                $alloc_gst = ($gst_type !== 'RCM' && $gst_rate > 0) ? round($alloc_freight * $gst_rate / 100, 2) : 0.0;
-                            } else {
-                                // Normal on-account payment: NO GST hold!
-                                $tds_mult = $tds_rate / 100;
-                                $eff_mult = 1.0 - $tds_mult;
-                                $alloc_freight = ($eff_mult > 0.001) ? min((float)$c['freight'], max(0.0, round($net_for_freight / $eff_mult, 2))) : min((float)$c['freight'], $net_for_freight);
-                                $alloc_tds = ($tds_rate > 0) ? round($alloc_freight * $tds_rate / 100, 2) : 0.0;
-                                $alloc_gst = 0.0;
-                            }
+                            // Money payment adjusted strictly from net freight without GST; GST stands balance
+                            $tds_mult = $tds_rate / 100;
+                            $eff_mult = 1.0 - $tds_mult;
+                            $alloc_freight = ($eff_mult > 0.001) ? min((float)$c['freight'], max(0.0, round($net_for_freight / $eff_mult, 2))) : min((float)$c['freight'], $net_for_freight);
+                            $alloc_tds = ($tds_rate > 0) ? round($alloc_freight * $tds_rate / 100, 2) : 0.0;
+                            $alloc_gst = 0.0;
 
                             // Reconcile penny difference to match exact alloc_net
-                            $calc_net = round($alloc_freight + ($gst_hold === 'Yes' ? 0.0 : $alloc_gst) - $alloc_tds + $alloc_misc, 2);
+                            $calc_net = round($alloc_freight - $alloc_tds + $alloc_misc, 2);
                             $diff = round($alloc_net - $calc_net, 2);
                             if (abs($diff) > 0.001 && abs($diff) < 1.0) {
                                 $alloc_freight = max(0.0, round($alloc_freight + $diff, 2));
                                 if ($tds_rate > 0) {
                                     $alloc_tds = round($alloc_freight * $tds_rate / 100, 2);
-                                }
-                                if ($gst_hold === 'Yes' && $gst_type !== 'RCM' && $gst_rate > 0) {
-                                    $alloc_gst = round($alloc_freight * $gst_rate / 100, 2);
                                 }
                             }
                         }
@@ -410,6 +399,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
                     $total_settled_batch = round($total_settled_batch + $alloc_net, 2);
                     $payment_no = generatePaymentNoBulk($db, $payment_date);
 
+                    $save_gst_held = 'No'; // GST stands balance on challan
                     $esc = fn($v) => $db->real_escape_string($v);
                     $sql = "INSERT INTO transporter_payments
                         (payment_no, payment_batch_no, payment_date, transporter_id, despatch_id, payment_type,
@@ -418,7 +408,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
                          remarks, status, created_by)
                         VALUES
                         ('{$esc($payment_no)}', '{$esc($batch_no)}', '{$esc($payment_date)}', $selected_transporter_id, $despatch_id, '{$esc($payment_type)}',
-                         $alloc_net, $alloc_freight, '{$esc($gst_type)}', $gst_rate, $alloc_gst, '{$esc($gst_hold)}', '{$esc($is_gst_release)}',
+                         $alloc_net, $alloc_freight, '{$esc($gst_type)}', $gst_rate, $alloc_gst, '{$esc($save_gst_held)}', '{$esc($is_gst_release)}',
                          $tds_rate, $alloc_tds, $alloc_net, $alloc_misc, '', '', '',
                          '{$esc($remarks)}', '{$esc($status)}', $created_by)";
                     if (!$db->query($sql)) {
@@ -1035,6 +1025,7 @@ function updateBulkSummary() {
         var base = parseFloat(cb.dataset.base || 0);
         var gst = parseFloat(cb.dataset.gst || 0);
         var tds = parseFloat(cb.dataset.tds || 0);
+        var misc = parseFloat(cb.dataset.misc || 0);
         var isRel = cb.dataset.release === '1';
         var isGstBal = cb.dataset.gstBalance === '1';
         var net;
