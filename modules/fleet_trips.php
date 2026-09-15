@@ -2696,10 +2696,30 @@ $trip_back_url = (!empty($_GET['back']) && strpos($_GET['back'], 'view=register'
         </select>
     </div>
     <div class="col-6 col-md-3">
-        <label class="form-label">From Location</label>
-        <input type="text" name="from_location" id="fromLocation" class="form-control"
-               placeholder="Loading point"
-               value="<?= htmlspecialchars($t['from_location'] ?? '') ?>">
+        <label class="form-label">Source of Material (From)</label>
+        <div class="input-group">
+            <select name="from_location" id="fromLocation" class="form-select" onchange="updateMtcAutoFields()">
+                <option value="">— Select Source —</option>
+                <?php foreach ($sources_list as $src): ?>
+                <option value="<?= htmlspecialchars($src['source_name']) ?>"
+                    <?= ($t['from_location'] ?? '') === $src['source_name'] ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($src['source_name']) ?>
+                </option>
+                <?php endforeach; ?>
+            </select>
+            <button type="button" class="btn btn-outline-success" title="Add new source"
+                onclick="showAddSource()" style="white-space:nowrap">
+                <i class="bi bi-plus"></i>
+            </button>
+        </div>
+        <!-- Inline add source (hidden by default) -->
+        <div id="addSourceBox" class="mt-1 d-none">
+            <div class="input-group input-group-sm">
+                <input type="text" id="newSourceName" class="form-control" placeholder="New source name...">
+                <button type="button" class="btn btn-success" onclick="saveNewSource()">Save</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="hideAddSource()">Cancel</button>
+            </div>
+        </div>
     </div>
     <div class="col-6 col-md-3">
         <label class="form-label">To Location</label>
@@ -3695,6 +3715,52 @@ function updateMtcAutoFields() {
     if (iname && firstItemNameEl && firstItemNameEl.value) {
         iname.value = firstItemNameEl.value;
     }
+}
+
+/* ── Add new source of material inline ── */
+function showAddSource() {
+    var box = document.getElementById('addSourceBox');
+    if (box) {
+        box.classList.remove('d-none');
+        var input = document.getElementById('newSourceName');
+        if (input) input.focus();
+    }
+}
+function hideAddSource() {
+    var box = document.getElementById('addSourceBox');
+    if (box) box.classList.add('d-none');
+    var input = document.getElementById('newSourceName');
+    if (input) input.value = '';
+}
+function saveNewSource() {
+    var input = document.getElementById('newSourceName');
+    var name = input ? input.value.trim() : '';
+    if (!name) { alert('Please enter a source name.'); return; }
+    fetch('fleet_trips.php?ajax=add_source', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'source_name=' + encodeURIComponent(name)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            var sel = document.getElementById('fromLocation');
+            if (sel) {
+                var opt = document.createElement('option');
+                opt.value = data.source_name;
+                opt.text  = data.source_name;
+                opt.selected = true;
+                sel.appendChild(opt);
+            }
+            hideAddSource();
+            updateMtcAutoFields();
+        } else {
+            alert(data.error || 'Failed to add source.');
+        }
+    })
+    .catch(function(err) {
+        alert('Network error while adding source.');
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
