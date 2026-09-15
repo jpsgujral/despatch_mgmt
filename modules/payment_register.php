@@ -541,7 +541,7 @@ include '../includes/header.php';
                                             </td>
                                             <td>
                                                 <span class="badge bg-light text-dark border"><?= htmlspecialchars($cr['payment_type'] ?? '') ?></span>
-                                                <?php if ($cr_rel): ?><span class="badge bg-success ms-1">GST Release</span><?php endif; ?>
+                                                <?php if ($cr_rel): ?><span class="badge bg-success ms-1">Release GST</span><?php endif; ?>
                                             </td>
                                             <td class="text-end">
                                                 <?php if ((float)($cr['gst_amount'] ?? 0) > 0): ?>
@@ -698,13 +698,13 @@ include '../includes/header.php';
                     $row_auth_id = 'payauth_' . (int)$v['id'];
                 ?>
                     <tr<?= $canc ? ' class="text-muted opacity-75"' : '' ?>>
-                        <td><?= $row_i++ ?></td>
-                        <td>
-                            <strong><?= htmlspecialchars($v['payment_no']) ?></strong>
-                            <?php if (!empty($v['payment_batch_no'])): ?><br><span class="badge bg-info text-dark"><?= htmlspecialchars($v['payment_batch_no']) ?></span><?php endif; ?>
-                            <?php if ($rel): ?><br><span class="badge bg-success">GST Release</span><?php endif; ?>
-                        </td>
-                        <td style="white-space:nowrap"><?= date('d/m/Y', strtotime($v['payment_date'])) ?></td>
+                        <td><?= $row_i++ ?></td>
+                        <td>
+                            <strong><?= htmlspecialchars($v['payment_no']) ?></strong>
+                            <?php if (!empty($v['payment_batch_no'])): ?><br><span class="badge bg-info text-dark"><?= htmlspecialchars($v['payment_batch_no']) ?></span><?php endif; ?>
+                            <?php if ($rel): ?><br><span class="badge bg-success">Release GST</span><?php endif; ?>
+                        </td>
+                        <td style="white-space:nowrap"><?= date('d/m/Y', strtotime($v['payment_date'])) ?></td>
                         <td class="payreg-sticky-col">
                             <?php if (!empty($v['challan_no'])): ?>
                                 <strong class="text-primary"><?= htmlspecialchars($v['challan_no']) ?></strong>

@@ -658,7 +658,7 @@ include '../includes/header.php';
     <div class="alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-3">
         <i class="bi bi-check-circle-fill fs-5 flex-shrink-0 text-success"></i>
         <div class="flex-grow-1">
-            <strong>GST Release Mode</strong> — Recording payment to release held GST of
+            <strong>Release GST Mode</strong> — Recording payment to release held GST of
             <strong id="roGstReleaseAmt">₹0.00</strong> to the transporter.
         </div>
         <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" onclick="deactivateGstRelease()">
@@ -724,7 +724,7 @@ include '../includes/header.php';
             <option value="Partial"         <?= (($payment['payment_type']??'')=='Partial')?'selected':'' ?>>Partial</option>
             <option value="Advance"         <?= (($payment['payment_type']??'')=='Advance')?'selected':'' ?>>Advance</option>
             <option value="Against LR"      <?= (($payment['payment_type']??'')=='Against LR')?'selected':'' ?>>Against LR</option>
-            <option value="GST Release"     <?= (($payment['payment_type']??'')=='GST Release')?'selected':'' ?>>GST Release</option>
+            <option value="Release GST"     <?= in_array($payment['payment_type']??'', ['Release GST','GST Release'], true)?'selected':'' ?>>Release GST</option>
         </select>
     </div>
     <div class="col-6 col-sm-4 col-md-2">
@@ -1192,7 +1192,7 @@ $grp_idx = 0;
             <td><?= $row_i++ ?></td>
             <td>
                 <strong class="text-dark"><?= htmlspecialchars($v['payment_no']) ?></strong>
-                <?php if($rel): ?><br><span class="badge badge-soft-success">GST Release</span><?php endif; ?>
+                <?php if($rel): ?><br><span class="badge badge-soft-success">Release GST</span><?php endif; ?>
             </td>
             <td style="white-space:nowrap" class="text-secondary"><?= date('d/m/Y',strtotime($v['payment_date'])) ?></td>
             <td class="hist-sticky-col">
@@ -1740,8 +1740,8 @@ function activateGstRelease() {
     el('roGstHoldWrap').style.display    = 'none';
     el('gstHoldToggleWrap').style.display = 'none';
     var ptSel = el('paymentTypeSel');
-    if (ptSel) ptSel.value = 'GST Release';
-    setText('amtLabel', 'GST Release Amount (₹) *');
+    if (ptSel) ptSel.value = 'Release GST';
+    setText('amtLabel', 'Release GST Amount (₹) *');
     setText('roGstReleaseAmt', '₹' + fmt(D.gstOnHold));
     maxAllowed = D.gstOnHold;
     var amtEl = el('amountThisPayment');
@@ -1755,7 +1755,7 @@ function deactivateGstRelease() {
     el('fIsGstRelease').value = 'No';
     el('gstReleaseNotice').style.display = 'none';
     var ptSel = el('paymentTypeSel');
-    if (ptSel && ptSel.value === 'GST Release') ptSel.value = 'Full Settlement';
+    if (ptSel && (ptSel.value === 'Release GST' || ptSel.value === 'GST Release')) ptSel.value = 'Full Settlement';
     setText('amtLabel', 'Amount Being Paid (₹) *');
     if (D) {
         el('roGstHoldWrap').style.display = D.gstOnHold > 0.005 ? 'block' : 'none';
@@ -1867,7 +1867,7 @@ function renderPriorPayments(despatchId) {
         return '<tr' + (canc ? ' class="text-decoration-line-through text-muted opacity-75"' : '') + '>'
             + '<td>' + (i+1) + '</td>'
             + '<td><strong>' + esc(p.payment_no) + '</strong>'
-              + (rel  ? '<br><span class="badge bg-success">GST Release</span>' : '')
+              + (rel  ? '<br><span class="badge bg-success">Release GST</span>' : '')
               + (canc ? '<br><span class="badge bg-danger">Cancelled</span>' : '') + '</td>'
             + '<td>' + fmtDate(p.payment_date) + '</td>'
             + '<td><span class="badge bg-light text-dark border">' + esc(p.payment_type) + '</span></td>'

@@ -357,7 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
                         $alloc_gst = $c['gst_amount'];
                         $alloc_tds = $c['tds_amount'];
                         $alloc_misc = $c['misc'];
-                        $payment_type = $is_release_only ? 'GST Release' : ($is_gst_balance_only ? 'GST Balance' : 'Bulk Settlement');
+                        $payment_type = $is_release_only ? 'Release GST' : ($is_gst_balance_only ? 'GST Balance' : 'Bulk Settlement');
                         $fully_settled_count++;
                     } else {
                         // Partial settlement for this row
@@ -366,7 +366,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_bulk_payment']))
                         $standing_balance_total = round($standing_balance_total + $standing_on_row, 2);
                         $remaining_budget = 0.0;
                         $partially_settled_count++;
-                        $payment_type = 'Partial Settlement';
+                        $payment_type = $is_release_only ? 'Release GST' : ($is_gst_balance_only ? 'GST Balance' : 'Partial Settlement');
 
                         if ($is_release_only || $is_gst_balance_only) {
                             $alloc_freight = 0.0;
@@ -917,7 +917,7 @@ include '../includes/header.php';
                             $tds_amount = (!$release_only && !$gst_balance_only && ($row['tds_applicable'] ?? 'No') === 'Yes') ? round($freight * (float)($row['tds_rate'] ?? 0) / 100, 2) : 0;
                             $default_net = ($release_only || $gst_balance_only) ? $gst_amount : round($freight + $gst_amount - $tds_amount + $misc, 2);
                             $row_badge = $release_only ? 'info text-dark' : ($gst_balance_only ? 'primary' : (empty($row['_selectable']) ? 'secondary' : 'success'));
-                            $row_label = $release_only ? 'GST Release' : ($gst_balance_only ? 'GST Balance' : (empty($row['_selectable']) ? 'No Balance' : 'Ready'));
+                            $row_label = $release_only ? 'Release GST' : ($gst_balance_only ? 'GST Balance' : (empty($row['_selectable']) ? 'No Balance' : 'Ready'));
                         ?>
                         <tr class="<?= $release_only ? 'table-info' : ($gst_balance_only ? 'table-primary' : (empty($row['_selectable']) ? 'table-secondary' : '')) ?>" id="row_<?= (int)$row['id'] ?>">
                             <td>
